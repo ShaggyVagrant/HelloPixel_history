@@ -2,8 +2,22 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Songbird Explorer - История токенов</title>
+
+    <!-- PWA: Манифест -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- PWA: iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Songbird Explorer" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- PWA: Цвет темы -->
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- Основные стили -->
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,16 +27,16 @@
             <p class="subtitle">Получение истории транзакций токенов по адресу</p>
 
             <div class="form-group">
-<div class="input-wrapper">
-    <input
-        type="text"
-        id="addressInput"
-        list="addressHistory"
-        placeholder="Введите адрес кошелька (0x...)"
-        value=""
-    />
-    <datalist id="addressHistory"></datalist>
-</div>
+                <div class="input-wrapper">
+                    <input
+                        type="text"
+                        id="addressInput"
+                        list="addressHistory"
+                        placeholder="Введите адрес кошелька (0x...)"
+                        value=""
+                    />
+                    <datalist id="addressHistory"></datalist>
+                </div>
                 <select id="tokenTypeFilter">
                     <option value="">Все типы токенов</option>
                     <option value="ERC-20">ERC-20</option>
@@ -42,99 +56,99 @@
 
             <!-- Фильтры -->
             <div class="filters">
-<div class="filters-header" id="filtersHeader">
-    <span class="filters-title">🔍 Фильтры</span>
-    <button class="filters-toggle" id="filtersToggle" aria-label="Свернуть/развернуть фильтры">
-        <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-    </button>
-</div>
-<div class="filters-content" id="filtersContent">
-    <!-- Существующие фильтры -->
-    <div class="filter-group">
-        <label>
-            <input type="checkbox" id="showOnlyIncoming" /> Только входящие
-        </label>
-        <label>
-            <input type="checkbox" id="showOnlyOutgoing" /> Только исходящие
-        </label>
-    </div>
+                <div class="filters-header" id="filtersHeader">
+                    <span class="filters-title">🔍 Фильтры</span>
+                    <button class="filters-toggle" id="filtersToggle" aria-label="Свернуть/развернуть фильтры">
+                        <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <div class="filters-content" id="filtersContent">
+                    <div class="filter-group">
+                        <label>
+                            <input type="checkbox" id="showOnlyIncoming" /> Только входящие
+                        </label>
+                        <label>
+                            <input type="checkbox" id="showOnlyOutgoing" /> Только исходящие
+                        </label>
+                    </div>
 
-                <div class="filter-group method-filters">
-                    <span class="filter-label">📋 Методы вызова:</span>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="all" checked /> Все
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="mintForOne" /> От команды (ЛБ, за рефов)
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="burn" /> Крафт
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="mint" /> Запаковка пыли
-                    </label>
-                    <label>
-                       <input type="checkbox" class="method-checkbox" data-method="raspakovka_pyli" /> Распаковка пыли
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="craft" /> Крафт по рецепту
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="start" /> Запуск УС
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="claimForUser" /> Автоклейм
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="claimFreeChest" /> Открыть сундук
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="claimReward" /> Ручной клейм
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="createOrder" /> Выставлен на продажу
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="executeOrder" /> Куплен на рынке
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="cancelOrder" /> Снято с продажи
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="prokachka_hranilisha" /> Прокачка хранилища
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="prokachka_dreli" /> Прокачка дрели
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="upgradeMine" /> Прокачка шахты
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="equip" /> Надеть NFT
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="unequip" /> Снять NFT
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="purchaseChestForPXLs" /> Куплен дрон за PXLs
-                    </label>
-                    <label>
-                        <input type="checkbox" class="method-checkbox" data-method="popolnenie_sindikata" /> Пополнение синдиката
-                    </label>
+                    <div class="filter-group method-filters">
+                        <span class="filter-label">📋 Методы вызова:</span>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="all" checked /> Все
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="mintForOne" /> От команды (ЛБ, за рефов)
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="burn" /> Крафт
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="mint" /> Запаковка пыли
+                        </label>
+                        <label>
+                           <input type="checkbox" class="method-checkbox" data-method="raspakovka_pyli" /> Распаковка пыли
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="craft" /> Крафт по рецепту
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="start" /> Запуск УС
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="claimForUser" /> Автоклейм
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="claimFreeChest" /> Открыть сундук
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="claimReward" /> Ручной клейм
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="createOrder" /> Выставлен на продажу
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="executeOrder" /> Куплен на рынке
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="cancelOrder" /> Снято с продажи
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="prokachka_hranilisha" /> Прокачка хранилища
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="prokachka_dreli" /> Прокачка дрели
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="upgradeMine" /> Прокачка шахты
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="equip" /> Надеть NFT
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="unequip" /> Снять NFT
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="purchaseChestForPXLs" /> Куплен дрон за PXLs
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="popolnenie_sindikata" /> Пополнение синдиката
+                        </label>
+                    </div>
                 </div>
             </div>
 
-<!-- Пагинация СВЕРХУ -->
-<div id="paginationControlsTop" class="pagination" style="display: none;">
-    <button class="firstPageBtn" disabled>⏮ Первая</button>
-    <button class="prevPageBtn" disabled>◀ Назад</button>
-    <div class="page-numbers" id="pageNumbersTop"></div>
-    <button class="nextPageBtn">Вперед ▶</button>
-    <button class="lastPageBtn">Последняя ⏭</button>
-    <button id="loadMoreBtn" class="load-more-btn">Загрузить ещё</button>
-</div>
+            <!-- Пагинация СВЕРХУ -->
+            <div id="paginationControlsTop" class="pagination" style="display: none;">
+                <button class="firstPageBtn" disabled>⏮ Первая</button>
+                <button class="prevPageBtn" disabled>◀ Назад</button>
+                <div class="page-numbers" id="pageNumbersTop"></div>
+                <button class="nextPageBtn">Вперед ▶</button>
+                <button class="lastPageBtn">Последняя ⏭</button>
+                <button id="loadMoreBtn" class="load-more-btn">Загрузить ещё</button>
+            </div>
 
             <!-- Таблица -->
             <div class="table-wrap">
@@ -163,19 +177,31 @@
                 </table>
             </div>
 
-<!-- Пагинация СНИЗУ (дубликат) -->
-<div id="paginationControlsBottom" class="pagination" style="display: none;">
-    <button class="firstPageBtn" disabled>⏮ Первая</button>
-    <button class="prevPageBtn" disabled>◀ Назад</button>
-    <div class="page-numbers" id="pageNumbersBottom"></div>
-    <button class="nextPageBtn">Вперед ▶</button>
-    <button class="lastPageBtn">Последняя ⏭</button>
-    <button id="loadMoreBtnBottom" class="load-more-btn">Загрузить ещё</button>
-</div>
+            <!-- Пагинация СНИЗУ -->
+            <div id="paginationControlsBottom" class="pagination" style="display: none;">
+                <button class="firstPageBtn" disabled>⏮ Первая</button>
+                <button class="prevPageBtn" disabled>◀ Назад</button>
+                <div class="page-numbers" id="pageNumbersBottom"></div>
+                <button class="nextPageBtn">Вперед ▶</button>
+                <button class="lastPageBtn">Последняя ⏭</button>
+                <button id="loadMoreBtnBottom" class="load-more-btn">Загрузить ещё</button>
+            </div>
         </div>
     </div>
 
+    <!-- Регистрация Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => {
+                    console.log('Service Worker зарегистрирован успешно');
+                })
+                .catch((error) => {
+                    console.log('Ошибка регистрации Service Worker:', error);
+                });
+        }
+    </script>
+
     <script src="script.js"></script>
 </body>
-</html>
 </html>
