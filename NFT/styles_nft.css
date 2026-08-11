@@ -1,0 +1,131 @@
+/* Общие стили */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    height: 100vh;
+}
+
+/* Левая часть (40%) */
+.left-panel {
+    flex: 0 0 40%; /* Фиксированная ширина 40% */
+    padding: 20px;
+    border-right: 2px solid #ccc;
+    overflow-y: auto;
+}
+
+.input-form {
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.input-form h1 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.network-selector {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.network-selector label {
+    margin-bottom: 5px;
+}
+
+.input-form input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.input-form button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.input-form button:hover {
+    background-color: #0056b3;
+}
+
+.nft-info {
+    margin-top: 20px;
+}
+
+/* Правая часть (60%) */
+.right-panel {
+    flex: 0 0 60%; /* Фиксированная ширина 60% */
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+}
+
+.nft-image-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.nft-image-container h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.token-image {
+    width: 400px; /* Фиксированная ширина */
+    height: 400px; /* Фиксированная высота */
+    object-fit: cover; /* Сохраняем пропорции и обрезаем изображение */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nft-modifiers {
+    width: 100%;
+    max-width: 400px;
+    margin-top: 20px;
+}
+
+.nft-modifiers h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.nft-modifiers div {
+    margin-bottom: 2px; /* Уменьшаем расстояние между строками */
+    padding-left: 10px; /* Отступ только слева */
+}
+
+/* Рамки для разных уровней редкости */
+.rarity-1 {
+    border: 10px solid white; /* Толщина рамки 10px */
+}
+
+.rarity-2 {
+    border: 10px solid green; /* Толщина рамки 10px */
+}
+
+.rarity-3 {
+    border: 10px solid azure; /* Толщина рамки 10px */
+}
+
+.rarity-4 {
+    border: 10px solid #c8a2c8; /* Lighter Purple, толщина рамки 10px */
+}
+
+.rarity-5 {
+    border: 10px solid #ff7518; /* Pumpkin Orange, толщина рамки 10px */
+}
