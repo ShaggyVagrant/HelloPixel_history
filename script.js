@@ -219,6 +219,108 @@ function truncateHash(hash, chars = 6) {
     if (hash.length <= chars * 2 + 2) return hash;
     return `${hash.slice(0, chars)}...${hash.slice(-chars)}`;
 }
+// ===== ПОКАЗ CHANGELOG =====
+async function checkChangelog() {
+  const currentVersion = '0.0.6'; // Обновляйте вручную или берите из package.json
+
+  // Проверяем, показывали ли уже эту версию
+  const lastSeenVersion = localStorage.getItem('changelog_seen');
+
+  if (lastSeenVersion === currentVersion) {
+    return; // Уже показывали
+  }
+
+  try {
+    const response = await fetch('changelog.json');
+    const changelog = await response.json();
+
+    // Ищем запись для текущей версии
+    const entry = changelog.find(item => item.version === currentVersion);
+
+    if (entry && entry.changes.length > 0) {
+      showChangelogModal(entry);
+    }
+
+    // Запоминаем, что показали
+    localStorage.setItem('changelog_seen', currentVersion);
+
+  } catch (error) {
+    console.error('Ошибка загрузки changelog:', error);
+  }
+}
+
+function showChangelogModal(entry) {
+  // Создаём затемнённый фон
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+  `;
+
+  // Создаём окно
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background: white;
+    max-width: 400px;
+    width: 90%;
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    max-height: 80vh;
+    overflow-y: auto;
+  `;
+
+  modal.innerHTML = `
+    <h2 style="margin: 0 0 4px 0; font-size: 22px;">🔄 Что нового</h2>
+    <p style="color: #6b7280; margin: 0 0 16px 0; font-size: 14px;">
+      Версия ${entry.version} от ${entry.date}
+    </p>
+    <ul style="list-style: none; padding: 0; margin: 0 0 20px 0;">
+      ${entry.changes.map(text => `
+        <li style="
+          padding: 10px 0 10px 24px;
+          border-bottom: 1px solid #f3f4f6;
+          position: relative;
+          font-size: 14px;
+          line-height: 1.4;
+        ">
+          <span style="
+            position: absolute;
+            left: 0;
+            top: 10px;
+            color: #4f46e5;
+            font-weight: bold;
+          ">•</span>
+          ${text}
+        </li>
+      `).join('')}
+    </ul>
+    <button onclick="this.closest('div[style]').parentElement.remove()" style="
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    " onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+      Понятно, спасибо!
+    </button>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
 
 // --- КЕШИРОВАННОЕ ОПРЕДЕЛЕНИЕ МЕТОДА ---
 function getMethod(tx) {
@@ -985,7 +1087,6 @@ loadMoreBtns.forEach(btn => btn.addEventListener('click', loadMoreHandler));
 document.addEventListener('DOMContentLoaded', () => {
     const history = loadAddressHistory();
     updateDatalist(history);
-
     if (history.length > 0) {
         const lastAddress = history[0];
         addressInput.value = lastAddress;
@@ -994,4 +1095,5 @@ document.addEventListener('DOMContentLoaded', () => {
         addressInput.value = '';
         showStatus('Введите адрес кошелька и нажмите "Получить историю"', 'info');
     }
+    checkChangelog();
 });
