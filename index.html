@@ -73,7 +73,16 @@
                             <input type="checkbox" id="showOnlyOutgoing" /> Только исходящие
                         </label>
                     </div>
-
+<!-- Фильтр по токену -->
+<div class="filter-group token-filter-group">
+    <span class="filter-label">🏷️ Токен:</span>
+    <select id="tokenSymbolFilter">
+        <option value="all">Все токены</option>
+        <option value="PXLNFT">PXLNFT</option>
+        <option value="PXLs">PXLs</option>
+        <option value="PXLD">PXLD</option>
+    </select>
+</div>
                     <div class="filter-group method-filters">
                         <span class="filter-label">📋 Методы вызова:</span>
                         <label>
@@ -105,6 +114,9 @@
                         </label>
                         <label>
                             <input type="checkbox" class="method-checkbox" data-method="claimReward" /> Ручной клейм
+                        </label>
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="returnDroneAndClaimReward" /> Клейм пыли
                         </label>
                         <label>
                             <input type="checkbox" class="method-checkbox" data-method="createOrder" /> Выставлен на продажу

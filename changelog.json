@@ -1,0 +1,42 @@
+{
+  "date": "2026-08-13",
+  "range": {
+    "to": "HEAD"
+  },
+  "stats": {
+    "total": 2,
+    "breaking": 0,
+    "byType": {
+      "other": 2
+    }
+  },
+  "breaking": [],
+  "groups": [
+    {
+      "type": "other",
+      "emoji": "📦",
+      "title": "Other Changes",
+      "count": 2,
+      "commits": [
+        {
+          "hash": "00758bc17dd5518fc9cbe7b4c0feeb7381812f40",
+          "shortHash": "00758bc",
+          "type": "other",
+          "subject": "Обновление: Файлы настроек для айфона",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-11T10:42:53+05:00"
+        },
+        {
+          "hash": "4f5830c09705337527399641959cab9ef2e87db2",
+          "shortHash": "4f5830c",
+          "type": "other",
+          "subject": "Подготовка к PWA",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-11T09:41:47+05:00"
+        }
+      ]
+    }
+  ]
+}

@@ -112,6 +112,10 @@ const filtersHeader = document.getElementById('filtersHeader');
 const filtersToggle = document.getElementById('filtersToggle');
 const filtersContent = document.getElementById('filtersContent');
 
+
+const tokenSymbolFilter = document.getElementById('tokenSymbolFilter');
+
+
 const transfersBody = document.getElementById('transfersBody');
 
 // --- СОСТОЯНИЕ ---
@@ -394,10 +398,10 @@ async function enrichWithPrices(transfers) {
 function applyFilters(transfers) {
     let result = [...transfers];
 
+    // Фильтр по направлению (входящие/исходящие)
     const incoming = showIncomingCheck.checked;
     const outgoing = showOnlyOutgoingCheck.checked;
 
-    // Если включены оба или ни один — показываем все
     if (incoming && outgoing) {
         // ничего не фильтруем
     } else if (incoming) {
@@ -411,8 +415,17 @@ function applyFilters(transfers) {
             return from.toLowerCase() === currentAddress.toLowerCase();
         });
     }
-    // Если ни один не включён — ничего не фильтруем
 
+    // --- НОВЫЙ ФИЛЬТР ПО ТОКЕНУ ---
+    const selectedToken = tokenSymbolFilter.value;
+    if (selectedToken !== 'all') {
+        result = result.filter(t => {
+            const symbol = (t.token?.symbol || '').toUpperCase();
+            return symbol === selectedToken.toUpperCase();
+        });
+    }
+
+    // Фильтр по методам
     const selectedMethods = getSelectedMethods();
     if (selectedMethods !== null && selectedMethods.length > 0) {
         result = result.filter(t => {
@@ -931,6 +944,8 @@ addressInput.addEventListener('keypress', (e) => {
 
 showIncomingCheck.addEventListener('change', onFilterChange);
 showOnlyOutgoingCheck.addEventListener('change', onFilterChange);
+tokenSymbolFilter.addEventListener('change', onFilterChange);
+
 
 methodCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
