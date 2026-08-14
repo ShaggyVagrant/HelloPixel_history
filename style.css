@@ -984,3 +984,34 @@ tr:hover td {
 .clear-date-btn:hover {
     background: #e5e7eb;
 }
+
+/* ----- Сортировка ----- */
+.sort-filter-group {
+    border-top: 1px dashed #e5e7eb;
+    padding-top: 10px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+.sort-wrapper {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.sort-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #4b5563;
+    cursor: pointer;
+    user-select: none;
+}
+.sort-option input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+}
+
+

@@ -119,6 +119,8 @@ const endDateFilter = document.getElementById('endDateFilter');
 const applyDateFilter = document.getElementById('applyDateFilter');
 const clearDateFilter = document.getElementById('clearDateFilter');
 
+const sortRadios = document.querySelectorAll('input[name="sortOrder"]');
+
 const transfersBody = document.getElementById('transfersBody');
 
 // --- СОСТОЯНИЕ ---
@@ -135,7 +137,8 @@ let debounceTimer = null;
 //переменные для хранения дат
 let dateFilterStart = null; // в формате 'YYYY-MM-DD' или null
 let dateFilterEnd = null;
-
+// переменную для хранения порядка сортировки
+let sortOrder = 'desc'; // 'desc' — новые сверху, 'asc' — старые сверху
 
 // --- ХЕЛПЕРЫ ---
 function getAddress(obj) {
@@ -222,6 +225,50 @@ function updateDatalist(history) {
 }
 
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+// --- НАСТРОЙКА: порядок сортировки ---
+function loadSortOrder() {
+    const saved = localStorage.getItem('sortOrder');
+    if (saved === 'asc' || saved === 'desc') {
+        sortOrder = saved;
+    } else {
+        sortOrder = 'desc';
+    }
+    // Устанавливаем соответствующую радио-кнопку
+    sortRadios.forEach(radio => {
+        if (radio.value === sortOrder) {
+            radio.checked = true;
+        }
+    });
+}
+
+function saveSortOrder() {
+    sortRadios.forEach(radio => {
+        if (radio.checked) {
+            sortOrder = radio.value;
+            localStorage.setItem('sortOrder', sortOrder);
+        }
+    });
+    if (currentAddress) {
+        applySorting();
+        renderTransfers(true);
+        showStatus(`Сортировка обновлена: ${sortOrder === 'desc' ? 'новые сверху' : 'старые сверху'}`, 'info');
+    }
+}
+
+// --- ПРИМЕНЕНИЕ СОРТИРОВКИ ---
+function applySorting() {
+    if (!allTransfers.length) return;
+    allTransfers.sort((a, b) => {
+        const tsA = new Date(a.timestamp || a.block_timestamp || 0).getTime();
+        const tsB = new Date(b.timestamp || b.block_timestamp || 0).getTime();
+        if (sortOrder === 'desc') {
+            return tsB - tsA; // новые сверху
+        } else {
+            return tsA - tsB; // старые сверху
+        }
+    });
+}
+
 function truncateHash(hash, chars = 6) {
     if (!hash) return '—';
     if (hash.length <= chars * 2 + 2) return hash;
@@ -938,6 +985,7 @@ async function loadMorePages(count = 1, showIndicator = false) {
 
             uniqueNew.forEach(t => getMethod(t));
             allTransfers = [...allTransfers, ...uniqueNew];
+            applySorting(); // <-- СОРТИРУЕМ ПОСЛЕ ДОБАВЛЕНИЯ
             currentNext = data.next_page_params || null;
             nextPageParams = currentNext;
             loaded++;
@@ -954,6 +1002,7 @@ async function loadMorePages(count = 1, showIndicator = false) {
     }
     return loaded;
 }
+
 
 // --- ОСНОВНАЯ ЗАГРУЗКА ИСТОРИИ ---
 async function loadHistory(address, tokenType = '', initialLoad = false) {
@@ -985,7 +1034,7 @@ async function loadHistory(address, tokenType = '', initialLoad = false) {
         if (hasDateFilter && nextPageParams) {
             // Автоматически грузим ВСЕ страницы в диапазоне дат
             showStatus(`Загрузка диапазона… уже ${allTransfers.length} трансферов`, 'info');
-            while (nextPageParams && !isLoading === false) {
+            while (nextPageParams && isLoading) {
                 // защита: isLoading уже true, используем отдельный флаг остановки при необходимости
                 const pageData = await fetchTokenTransfers(currentAddress, tokenTypeFilter.value, nextPageParams);
                 const newItems = pageData.items || [];
@@ -1013,7 +1062,7 @@ async function loadHistory(address, tokenType = '', initialLoad = false) {
         } else {
             showStatus(`Загружено всего ${allTransfers.length} трансферов (${totalLoadedPages} страниц)`, 'success');
         }
-
+        applySorting();
         filteredTransfers = applyFilters(allTransfers);
     } catch (error) {
         console.error('Ошибка:', error);
@@ -1211,6 +1260,10 @@ addressInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') fetchBtn.click();
 });
 
+sortRadios.forEach(radio => {
+    radio.addEventListener('change', saveSortOrder);
+});
+
 showIncomingCheck.addEventListener('change', onFilterChange);
 showOnlyOutgoingCheck.addEventListener('change', onFilterChange);
 tokenSymbolFilter.addEventListener('change', onFilterChange);
@@ -1262,5 +1315,6 @@ document.addEventListener('DOMContentLoaded', () => {
         addressInput.value = '';
         showStatus('Введите адрес кошелька и нажмите "Получить историю"', 'info');
     }
+    loadSortOrder();
     checkChangelog();
 });
