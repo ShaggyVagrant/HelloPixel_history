@@ -84,6 +84,18 @@
         <option value="PXLD">PXLD</option>
     </select>
 </div>
+
+<!-- Фильтр по датам -->
+<div class="filter-group date-filter-group">
+    <span class="filter-label">📅 Период:</span>
+    <div class="date-range-wrapper">
+        <input type="date" id="startDateFilter" class="date-input" />
+        <span class="date-separator">—</span>
+        <input type="date" id="endDateFilter" class="date-input" />
+        <button id="applyDateFilter" class="apply-date-btn">Применить</button>
+        <button id="clearDateFilter" class="clear-date-btn">✕</button>
+    </div>
+</div>
                     <div class="filter-group method-filters">
                         <span class="filter-label">📋 Методы вызова:</span>
                         <label>

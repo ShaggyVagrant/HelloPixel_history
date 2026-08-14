@@ -114,7 +114,10 @@ const filtersContent = document.getElementById('filtersContent');
 
 
 const tokenSymbolFilter = document.getElementById('tokenSymbolFilter');
-
+const startDateFilter = document.getElementById('startDateFilter');
+const endDateFilter = document.getElementById('endDateFilter');
+const applyDateFilter = document.getElementById('applyDateFilter');
+const clearDateFilter = document.getElementById('clearDateFilter');
 
 const transfersBody = document.getElementById('transfersBody');
 
@@ -128,6 +131,11 @@ let isLoading = false;
 let isFilterLoading = false;
 let totalLoadedPages = 0;
 let debounceTimer = null;
+
+//переменные для хранения дат
+let dateFilterStart = null; // в формате 'YYYY-MM-DD' или null
+let dateFilterEnd = null;
+
 
 // --- ХЕЛПЕРЫ ---
 function getAddress(obj) {
@@ -219,9 +227,14 @@ function truncateHash(hash, chars = 6) {
     if (hash.length <= chars * 2 + 2) return hash;
     return `${hash.slice(0, chars)}...${hash.slice(-chars)}`;
 }
+
+function getAppVersion() {
+  const meta = document.querySelector('meta[name="app-version"]');
+  return meta ? meta.getAttribute('content') : '0.0.1';
+}
 // ===== ПОКАЗ CHANGELOG =====
 async function checkChangelog() {
-  const currentVersion = '0.0.6'; // Обновляйте вручную или берите из package.json
+  const currentVersion = getAppVersion(); // ерсия берётся из HTML
 
   // Проверяем, показывали ли уже эту версию
   const lastSeenVersion = localStorage.getItem('changelog_seen');
@@ -234,12 +247,34 @@ async function checkChangelog() {
     const response = await fetch('changelog.json');
     const changelog = await response.json();
 
-    // Ищем запись для текущей версии
-    const entry = changelog.find(item => item.version === currentVersion);
-
-    if (entry && entry.changes.length > 0) {
-      showChangelogModal(entry);
+    // Собираем все изменения из всех групп
+    const changes = [];
+    if (changelog.groups && Array.isArray(changelog.groups)) {
+      changelog.groups.forEach(group => {
+        if (group.commits && Array.isArray(group.commits)) {
+          group.commits.forEach(commit => {
+            if (commit.subject) {
+              changes.push(commit.subject);
+            }
+          });
+        }
+      });
     }
+
+    // Если изменений нет — не показываем
+    if (changes.length === 0) {
+      localStorage.setItem('changelog_seen', currentVersion);
+      return;
+    }
+
+    // Формируем entry для модального окна
+    const entry = {
+      version: currentVersion,
+      date: changelog.date || new Date().toLocaleDateString('ru-RU'),
+      changes: changes
+    };
+
+    showChangelogModal(entry);
 
     // Запоминаем, что показали
     localStorage.setItem('changelog_seen', currentVersion);
@@ -319,6 +354,35 @@ function showChangelogModal(entry) {
 
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
+}
+
+// --- ФИЛЬТР ПО ДАТАМ ---
+function applyDateFilterHandler() {
+    const start = startDateFilter.value;
+    const end = endDateFilter.value;
+
+    if (start && end && start > end) {
+        showStatus('Дата начала не может быть позже даты окончания', 'error');
+        return;
+    }
+
+    dateFilterStart = start || null;
+    dateFilterEnd = end || null;
+
+    if (currentAddress) {
+        loadHistory(currentAddress, tokenTypeFilter.value, false);
+    }
+}
+
+function clearDateFilterHandler() {
+    startDateFilter.value = '';
+    endDateFilter.value = '';
+    dateFilterStart = null;
+    dateFilterEnd = null;
+
+    if (currentAddress) {
+        loadHistory(currentAddress, tokenTypeFilter.value, false);
+    }
 }
 
 
@@ -764,15 +828,84 @@ async function loadPricesAndRender() {
 }
 
 // --- API ЗАПРОСЫ ---
-async function fetchTokenTransfers(address, tokenType = '', pageParams = null) {
-    const url = new URL(`${API_BASE_URL}/addresses/${address}/token-transfers`);
-    if (tokenType) url.searchParams.append('type', tokenType);
-    if (pageParams) {
-        for (const [key, value] of Object.entries(pageParams)) {
+function normalizeAdvancedFilterItem(item) {
+    return {
+        transaction_hash: item.hash,
+        timestamp: item.timestamp,
+        block_number: item.block_number,
+        log_index: item.token_transfer_index ?? item.transaction_index ?? 0,
+        from: item.from,
+        to: item.to,
+        token: item.token ? {
+            ...item.token,
+            type: item.token.type || item.type,
+            symbol: item.token.symbol,
+            name: item.token.name,
+            decimals: item.token.decimals,
+            address: item.token.address_hash || item.token.address
+        } : null,
+        total: item.total,
+        token_type: item.type,
+        method: item.method || null,
+        method_name: item.method || null
+    };
+}
+
+/** Добавляет pageParams: null → пустая строка (важно для advanced-filters) */
+function appendPageParams(url, pageParams) {
+    if (!pageParams) return;
+    for (const [key, value] of Object.entries(pageParams)) {
+        if (value === null || value === undefined) {
+            url.searchParams.append(key, '');
+        } else {
             url.searchParams.append(key, value);
         }
     }
+}
+
+async function fetchTokenTransfers(address, tokenType = '', pageParams = null) {
+    const hasDateFilter = !!(dateFilterStart || dateFilterEnd);
+
+    if (hasDateFilter) {
+        const url = new URL(`${API_BASE_URL}/advanced-filters`);
+
+        let types = 'ERC-20,ERC-721,ERC-1155';
+        if (tokenType) types = tokenType;
+        url.searchParams.append('transaction_types', types);
+
+        url.searchParams.append('from_address_hashes_to_include', address);
+        url.searchParams.append('to_address_hashes_to_include', address);
+        url.searchParams.append('address_relation', 'or');
+
+        if (dateFilterStart) {
+            url.searchParams.append('age_from', dateFilterStart + 'T00:00:00.000Z');
+        }
+        if (dateFilterEnd) {
+            url.searchParams.append('age_to', dateFilterEnd + 'T23:59:59.000Z');
+        }
+
+        appendPageParams(url, pageParams);
+        // advanced-filters лучше отдаёт по 50
+        url.searchParams.set('items_count', pageParams?.items_count || 50);
+
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Ошибка ${response.status}: ${errorText}`);
+        }
+        const data = await response.json();
+        return {
+            items: (data.items || []).map(normalizeAdvancedFilterItem),
+            next_page_params: data.next_page_params || null
+        };
+    }
+
+    // Без дат — старый эндпоинт
+    const url = new URL(`${API_BASE_URL}/addresses/${address}/token-transfers`);
+    if (tokenType) url.searchParams.append('type', tokenType);
+    appendPageParams(url, pageParams);
     url.searchParams.append('items_count', ITEMS_PER_PAGE);
+
     const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!response.ok) {
         const errorText = await response.text();
@@ -845,16 +978,43 @@ async function loadHistory(address, tokenType = '', initialLoad = false) {
         nextPageParams = data.next_page_params || null;
         totalLoadedPages = 1;
         allTransfers.forEach(t => getMethod(t));
-
         saveAddressHistory(address);
 
-        if (initialLoad && nextPageParams) {
+        const hasDateFilter = !!(dateFilterStart || dateFilterEnd);
+
+        if (hasDateFilter && nextPageParams) {
+            // Автоматически грузим ВСЕ страницы в диапазоне дат
+            showStatus(`Загрузка диапазона… уже ${allTransfers.length} трансферов`, 'info');
+            while (nextPageParams && !isLoading === false) {
+                // защита: isLoading уже true, используем отдельный флаг остановки при необходимости
+                const pageData = await fetchTokenTransfers(currentAddress, tokenTypeFilter.value, nextPageParams);
+                const newItems = pageData.items || [];
+
+                const existingKeys = new Set(allTransfers.map(t => `${t.transaction_hash}-${t.log_index}`));
+                const uniqueNew = newItems.filter(t => !existingKeys.has(`${t.transaction_hash}-${t.log_index}`));
+
+                if (uniqueNew.length === 0 && !pageData.next_page_params) break;
+
+                uniqueNew.forEach(t => getMethod(t));
+                allTransfers = [...allTransfers, ...uniqueNew];
+                nextPageParams = pageData.next_page_params || null;
+                totalLoadedPages++;
+
+                showStatus(`Загрузка диапазона… ${allTransfers.length} трансферов (${totalLoadedPages} стр.)`, 'info');
+
+                // если API зациклился — выходим
+                if (uniqueNew.length === 0) break;
+            }
+            showStatus(`Загружено ${allTransfers.length} трансферов за выбранный период`, 'success');
+        } else if (initialLoad && nextPageParams) {
             const pagesToLoad = Math.min(INITIAL_LOAD_PAGES - 1, 5);
             await loadMorePages(pagesToLoad, true);
+            showStatus(`Загружено всего ${allTransfers.length} трансферов (${totalLoadedPages} страниц)`, 'success');
+        } else {
+            showStatus(`Загружено всего ${allTransfers.length} трансферов (${totalLoadedPages} страниц)`, 'success');
         }
 
         filteredTransfers = applyFilters(allTransfers);
-        showStatus(`Загружено всего ${allTransfers.length} трансферов (${totalLoadedPages} страниц)`, 'success');
     } catch (error) {
         console.error('Ошибка:', error);
         showStatus(`Ошибка загрузки: ${error.message}`, 'error');
@@ -864,9 +1024,6 @@ async function loadHistory(address, tokenType = '', initialLoad = false) {
         isLoading = false;
         fetchBtn.disabled = false;
         await loadPricesAndRender();
-        if (initialLoad && nextPageParams && filteredTransfers.length < ITEMS_PER_PAGE) {
-            showStatus(`Показано ${filteredTransfers.length} записей. Нажмите "Загрузить ещё" для продолжения.`, 'info');
-        }
     }
 }
 
@@ -1038,6 +1195,16 @@ fetchBtn.addEventListener('click', () => {
     }
     const tokenType = tokenTypeFilter.value;
     loadHistory(address, tokenType, false);
+});
+
+applyDateFilter.addEventListener('click', applyDateFilterHandler);
+clearDateFilter.addEventListener('click', clearDateFilterHandler);
+// Можно добавить автоприменение при нажатии Enter
+startDateFilter.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') applyDateFilterHandler();
+});
+endDateFilter.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') applyDateFilterHandler();
 });
 
 addressInput.addEventListener('keypress', (e) => {
