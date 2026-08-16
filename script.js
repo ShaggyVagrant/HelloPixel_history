@@ -695,11 +695,31 @@ function renderTransferRow(transfer) {
 
     const showTokenId = (isPXLNFT || isNFT || (isEquipUnequip && tokenId)) && tokenId;
 
-    let tokenIdLink = '—';
-    if (showTokenId && tokenId) {
-        const encodedTokenId = encodeURIComponent(tokenId);
+// --- ИЗВЛЕКАЕМ ДАННЫЕ NFT ---
+const tokenInstance = transfer.total?.token_instance || {};
+const thumbnails = tokenInstance.thumbnails || {};
+// Используем 60x60 для миниатюры, если нет — 250x250, если нет — оригинал
+const nftImageUrl = thumbnails['60x60'] || thumbnails['250x250'] || thumbnails.original || '';
+const nftName = tokenInstance.metadata?.name || tokenInstance.name || '';
+
+let tokenIdLink = '—';
+if (showTokenId && tokenId) {
+    const encodedTokenId = encodeURIComponent(tokenId);
+
+    // Если есть изображение — показываем его как кликабельную миниатюру
+    if (nftImageUrl) {
+        tokenIdLink = `<a href="./NFT/NFT_1.html?tokenId=${encodedTokenId}" target="_blank" class="token-link" title="${nftName || tokenId}" style="display: block; text-align: right;">
+    <img src="${nftImageUrl}"
+         alt="NFT ${tokenId}"
+         style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; display: block; margin-left: auto; margin-right: 0; transition: transform 0.2s;"
+         onmouseover="this.style.transform='scale(1.1)'"
+         onmouseout="this.style.transform='scale(1)'" />
+</a>`;
+    } else {
+        // Если изображения нет — показываем ID как ссылку
         tokenIdLink = `<a href="./NFT/NFT_1.html?tokenId=${encodedTokenId}" target="_blank" class="token-link">${tokenId}</a>`;
     }
+}
 
     let price = '—';
     if (method === 'executeOrder' || method === 'createOrder') {

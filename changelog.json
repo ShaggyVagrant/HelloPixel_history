@@ -1,23 +1,104 @@
 {
-  "date": "2026-08-13",
+  "date": "2026-08-15",
   "range": {
     "to": "HEAD"
   },
   "stats": {
-    "total": 2,
+    "total": 8,
     "breaking": 0,
     "byType": {
-      "other": 2
+      "style": 1,
+      "feat": 3,
+      "docs": 1,
+      "other": 3
     }
   },
   "breaking": [],
   "groups": [
     {
+      "type": "feat",
+      "emoji": "✨",
+      "title": "Features",
+      "count": 3,
+      "commits": [
+        {
+          "hash": "4b15ae6968af971461338f31442f2bc345b5e517",
+          "shortHash": "4b15ae6",
+          "type": "feat",
+          "subject": "добавлена возможность сортировки по дате",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-14T09:38:30+05:00"
+        },
+        {
+          "hash": "dcb750a6bb475bb0a98ebb58d9034da12dea0ba2",
+          "shortHash": "dcb750a",
+          "type": "feat",
+          "subject": "добавлена возможность загрузки данных в диапазоне дат",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-14T08:59:50+05:00"
+        },
+        {
+          "hash": "caf7bd2b32d205b93c709e1b6f7c98c41ead0cdf",
+          "shortHash": "caf7bd2",
+          "type": "feat",
+          "subject": "версии считываются из index.html",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-13T22:46:38+05:00"
+        }
+      ]
+    },
+    {
+      "type": "docs",
+      "emoji": "📚",
+      "title": "Documentation",
+      "count": 1,
+      "commits": [
+        {
+          "hash": "5d467639f59432917b86bc190ecac2160cea3bf0",
+          "shortHash": "5d46763",
+          "type": "docs",
+          "subject": "добавлено показывать изменения версий",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-13T22:42:31+05:00"
+        }
+      ]
+    },
+    {
+      "type": "style",
+      "emoji": "💅",
+      "title": "Styles",
+      "count": 1,
+      "commits": [
+        {
+          "hash": "3853de9d84ee37f6a97a2eb8065309792b066a61",
+          "shortHash": "3853de9",
+          "type": "style",
+          "subject": "обновлён дизайн модуля NFT",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-14T22:51:06+05:00"
+        }
+      ]
+    },
+    {
       "type": "other",
       "emoji": "📦",
       "title": "Other Changes",
-      "count": 2,
+      "count": 3,
       "commits": [
+        {
+          "hash": "8d049fcc8bf66dc4696ae64d2451111d2ec0e1d6",
+          "shortHash": "8d049fc",
+          "type": "other",
+          "subject": "Добавлена фильтрация записей по токену (PXLNFT, PXLs, PXLD)",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-13T22:06:51+05:00"
+        },
         {
           "hash": "00758bc17dd5518fc9cbe7b4c0feeb7381812f40",
           "shortHash": "00758bc",
