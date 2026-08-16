@@ -697,9 +697,7 @@ function renderTransferRow(transfer) {
 
 // --- ИЗВЛЕКАЕМ ДАННЫЕ NFT ---
 const tokenInstance = transfer.total?.token_instance || {};
-const thumbnails = tokenInstance.thumbnails || {};
-// Используем 60x60 для миниатюры, если нет — 250x250, если нет — оригинал
-const nftImageUrl = thumbnails['60x60'] || thumbnails['250x250'] || thumbnails.original || '';
+const nftImageUrl = tokenInstance.image_url || tokenInstance.media_url || '';
 const nftName = tokenInstance.metadata?.name || tokenInstance.name || '';
 
 let tokenIdLink = '—';
