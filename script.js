@@ -944,12 +944,14 @@ async function fetchTokenTransfers(address, tokenType = '', pageParams = null) {
         url.searchParams.append('to_address_hashes_to_include', address);
         url.searchParams.append('address_relation', 'or');
 
-        if (dateFilterStart) {
-            url.searchParams.append('age_from', dateFilterStart + 'T00:00:00.000Z');
-        }
-        if (dateFilterEnd) {
-            url.searchParams.append('age_to', dateFilterEnd + 'T23:59:59.000Z');
-        }
+if (dateFilterStart) {
+    const startDate = new Date(dateFilterStart + 'T00:00:00');
+    url.searchParams.append('age_from', startDate.toISOString());
+}
+if (dateFilterEnd) {
+    const endDate = new Date(dateFilterEnd + 'T23:59:59');
+    url.searchParams.append('age_to', endDate.toISOString());
+}
 
         appendPageParams(url, pageParams);
         // advanced-filters лучше отдаёт по 50
