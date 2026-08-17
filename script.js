@@ -33,7 +33,10 @@ const CONFIG = {
         '0x01ce3d65': 'upgradeMine',
         '0x1a2b3c4d': 'claimForUser',
         '0x2b3c4d5e': 'claimReward',
-        '0xa7c83989': 'transferFromUser'
+        '0xa7c83989': 'transferFromUser',
+        '0x0d707a50': 'unlockSlot',
+        '0x282d3fdf': 'lock',
+        '0x7eee288d': 'unlock'
     },
     // События
     EVENTS: {
@@ -57,7 +60,10 @@ const CONFIG = {
         'BuySpeedLevel': 'buySpeedLevel',
         'UpgradeMine': 'upgradeMine',
         'ClaimForUser': 'claimForUser',
-        'ClaimReward': 'claimReward'
+        'ClaimReward': 'claimReward',
+        'UnlockSlot': 'unlockSlot',
+        'Lock': 'lock',
+        'Unlock': 'unlock'
     },
     // Специальные условия (адреса, символы токенов)
     SPECIALS: {
@@ -173,6 +179,9 @@ const METHOD_COLORS = {
     'upgradeMine': 'method-upgradeMine',
     'mint': 'method-mint',
     'raspakovka_pyli': 'method-raspakovka_pyli',
+    'unlockSlot': 'method-unlockSlot',
+    'lock': 'method-lock',
+    'unlock': 'method-unlock',
     'unknown': 'method-unknown',
     'other': 'method-other'
 };
@@ -198,7 +207,10 @@ const METHOD_LABELS = {
     'claimReward': 'Ручной клейм',
     'mint': 'Запаковка пыли',
     'raspakovka_pyli': 'Распаковка пыли',
+    'unlockSlot': 'Открытие слота',
     'transfer': 'transfer',
+    'lock': 'Земля в аренду',
+    'unlock': 'Вернуть землю',
     'unknown': 'неизвестно'
 };
 
@@ -908,6 +920,8 @@ function renderPageNumbers() {
 // --- Загрузка цен (обёртка) ---
 async function loadPricesAndRender() {
     filteredTransfers = applyFilters(allTransfers);
+
+    // Загружаем цены
     const needPrice = filteredTransfers.some(t => {
         const method = getMethod(t);
         return (method === 'executeOrder' || method === 'createOrder') && !t._price;
@@ -916,7 +930,56 @@ async function loadPricesAndRender() {
         showStatus('Загрузка цен для покупок...', 'info');
         await enrichWithPrices(filteredTransfers);
     }
+
+    // --- НОВОЕ: Загружаем миниатюры для NFT ---
+    const needImage = filteredTransfers.some(t => {
+        const tokenType = t.token?.type || '';
+        const isNFT = tokenType === 'ERC-721' || tokenType === 'ERC-1155';
+        const hasImage = t.total?.token_instance?.image_url || t.total?.token_instance?.media_url;
+        return isNFT && !hasImage;
+    });
+    if (needImage) {
+        showStatus('Загрузка миниатюр для NFT...', 'info');
+        await enrichWithNFTImages(filteredTransfers);
+    }
+
     renderTransfers(true);
+}
+
+async function enrichWithNFTImages(transfers) {
+    // Находим NFT-транзакции без image_url
+    const needImage = transfers.filter(t => {
+        const tokenType = t.token?.type || '';
+        const isNFT = tokenType === 'ERC-721' || tokenType === 'ERC-1155';
+        const hasImage = t.total?.token_instance?.image_url || t.total?.token_instance?.media_url;
+        return isNFT && !hasImage;
+    });
+
+    if (needImage.length === 0) return;
+
+    console.log(`🖼️ Загружаем миниатюры для ${needImage.length} NFT...`);
+
+    // Загружаем по одной с задержкой
+    for (const tx of needImage) {
+        try {
+            const url = `${API_BASE_URL}/transactions/${tx.transaction_hash}`;
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (response.ok) {
+                const data = await response.json();
+                // Ищем token_instance в данных транзакции
+                const tokenTransfer = data.token_transfers?.[0] || data.token_transfers?.find(t => t.token?.type === 'ERC-721' || t.token?.type === 'ERC-1155');
+                if (tokenTransfer?.token_instance) {
+                    // Обновляем данные в allTransfers
+                    tx.total.token_instance = tokenTransfer.token_instance;
+                    tx._imageUpdated = true;
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка загрузки миниатюры:', e);
+        }
+        // Задержка между запросами (300ms)
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
 }
 
 // --- API ЗАПРОСЫ ---

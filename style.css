@@ -701,6 +701,19 @@ tr:hover td {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
 }
 
+.method-unlockSlot {
+    background: #a78bfa;  /* фиолетовый */
+    color: #ffffff;
+}
+
+.method-lock {
+    background: #f59e0b;  /* янтарный */
+    color: #78350f;
+}
+.method-unlock {
+    background: #10b981;  /* изумрудный */
+    color: #064e3b;
+}
 
 /* =====================================================
    МОБИЛЬНЫЕ КАРТОЧКИ (v4 — простая и ровная вёрстка)
