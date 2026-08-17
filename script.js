@@ -490,20 +490,38 @@ function detectMethod(tx) {
             return 'prokachka_dreli';
         }
 
-        // --- Распаковка пыли ---
+        // --- Распаковка пыли (отправитель) ---
         const dustRule = CONFIG.SPECIALS.raspakovka_pyli;
         if (method === dustRule.method &&
             fromAddress === dustRule.fromAddress.toLowerCase()) {
             const symbols = dustRule.tokenSymbol.map(s => s.toUpperCase());
             const found = symbols.some(sym => tokenSymbol.includes(sym));
             if (found || tokenName.includes(dustRule.tokenName.toUpperCase())) {
+                // Сохраняем количество для распаковки
+                let amount = parseFloat(tx.total?.value || tx.value || 0);
+                if (amount > 0) {
+                    const decimals = tx.token?.decimals || 18;
+                    tx._dustAmount = amount / Math.pow(10, decimals);
+                }
                 return 'raspakovka_pyli';
             }
+        }
+
+        // --- Запаковка пыли (mint или transferFromUser с получателем) ---
+        if (method === 'mint' ||
+            (method === 'transferFromUser' &&
+             toAddress === '0xF2279eBf926ee1dAf3F539C3ab2DD0ea97ca6b24'.toLowerCase())) {
+            // Сохраняем количество для запаковки
+            let amount = parseFloat(tx.total?.value || tx.value || 0);
+            if (amount > 0) {
+                const decimals = tx.token?.decimals || 18;
+                tx._dustAmount = amount / Math.pow(10, decimals);
+            }
+            return 'mint';
         }
     }
     return method || 'other';
 }
-
 function getMethodClass(method) {
     return METHOD_COLORS[method] || METHOD_COLORS.other;
 }
@@ -660,7 +678,16 @@ function renderTransferRow(transfer) {
     const amountClass = incoming ? 'incoming' : 'outgoing';
     const amountSign = incoming ? '+' : '-';
     const methodClass = getMethodClass(method);
-    const methodLabel = getMethodLabel(method);
+let methodLabel = getMethodLabel(method);
+if ((method === 'mint' || method === 'raspakovka_pyli') && transfer._dustAmount) {
+    // Проверяем, что токен — PXLD (для надёжности)
+    const tokenSymbol = (transfer.token?.symbol || '').toUpperCase();
+    if (tokenSymbol === 'PXLD' || tokenSymbol === 'PXLDust') {
+        // Округляем до целого, так как пыль обычно в целых числах
+        const amount = Math.round(transfer._dustAmount);
+        methodLabel = `${methodLabel} (${amount})`;
+    }
+}
     const dateStr = getDateFromTransfer(transfer);
 
     // --- Разбиваем дату на две строки ---
