@@ -110,81 +110,177 @@
     </div>
 
 
-                    <div class="filter-group method-filters">
-                        <span class="filter-label">📋 Методы вызова:</span>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="all" checked /> Все
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="mintForOne" /> От команды (ЛБ, за рефов)
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="burn" /> Крафт
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="mint" /> Запаковка пыли
-                        </label>
-                        <label>
-                           <input type="checkbox" class="method-checkbox" data-method="raspakovka_pyli" /> Распаковка пыли
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="craft" /> Крафт по рецепту
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="start" /> Запуск УС
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="claimForUser" /> Автоклейм
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="claimFreeChest" /> Открыть сундук
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="claimReward" /> Ручной клейм
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="returnDroneAndClaimReward" /> Клейм пыли
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="createOrder" /> Выставлен на продажу
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="executeOrder" /> Куплен на рынке
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="cancelOrder" /> Снято с продажи
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="prokachka_hranilisha" /> Прокачка хранилища
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="prokachka_dreli" /> Прокачка дрели
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="upgradeMine" /> Прокачка шахты
-                        </label>
-<label>
-    <input type="checkbox" class="method-checkbox" data-method="unlockSlot" /> Открытие слота
-</label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="equip" /> Надеть NFT
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="unequip" /> Снять NFT
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="purchaseChestForPXLs" /> Куплен дрон за PXLs
-                        </label>
-                        <label>
-                            <input type="checkbox" class="method-checkbox" data-method="popolnenie_sindikata" /> Пополнение синдиката
-                        </label>
-<label>
-    <input type="checkbox" class="method-checkbox" data-method="lock" /> Земля в аренду
-</label>
-<label>
-    <input type="checkbox" class="method-checkbox" data-method="unlock" /> Вернуть землю
-</label>
-                    </div>
+<div class="filter-group method-filters">
+    <span class="filter-label">📋 Методы вызова:</span>
+
+    <!-- Группа: От команды -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="command">
+            <span class="group-title">👑 От команды</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="mintForOne" /> От команды (ЛБ, за рефов)
+            </label>
+        </div>
+    </div>
+
+    <!-- Группа: Кузня -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="forge">
+            <span class="group-title">⚒️ Кузня</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="burn" /> Крафт
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="mint" /> Запаковка пыли
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="raspakovka_pyli" /> Распаковка пыли
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="craft" /> Крафт по рецепту
+            </label>
+        </div>
+    </div>
+
+    <!-- Группа: Клеймы -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="claims">
+            <span class="group-title">🎯 Клеймы</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="start" /> Запуск УС
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="claimForUser" /> Автоклейм
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="claimReward" /> Ручной клейм
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="returnDroneAndClaimReward" /> Клейм пыли
+            </label>
+        </div>
+    </div>
+
+    <!-- Группа: Купить/продать -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="market">
+            <span class="group-title">💰 Купить/продать</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="createOrder" /> Выставлен на продажу
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="executeOrder" /> Куплен на рынке
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="cancelOrder" /> Снято с продажи
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="purchaseChestForPXLs" /> Куплен дрон за PXLs
+            </label>
+        </div>
+    </div>
+
+    <!-- Группа: Майнер и инвентарь -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="miner">
+            <span class="group-title">⛏️ Майнер и инвентарь</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="prokachka_hranilisha" /> Прокачка хранилища
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="prokachka_dreli" /> Прокачка дрели
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="upgradeMine" /> Прокачка шахты
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="unlockSlot" /> Открытие слота
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="equip" /> Надеть NFT
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="unequip" /> Снять NFT
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="claimFreeChest" /> Открыть сундук
+            </label>
+        </div>
+    </div>
+
+    <!-- Группа: Синдикаты -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="syndicate">
+            <span class="group-title">🏛️ Синдикаты</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="popolnenie_sindikata" /> Пополнение синдиката
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="lock" /> Земля в аренду
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="unlock" /> Вернуть землю
+            </label>
+        </div>
+    </div>
+
+    <!-- Группа: Расширенные фильтры (пока пустая) -->
+    <div class="filter-group-collapsible">
+        <div class="group-header" data-group="advanced">
+            <span class="group-title">🔧 Расширенные фильтры</span>
+            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+        <div class="group-content">
+            <!-- Здесь будут новые фильтры -->
+        </div>
+    </div>
+</div>
                 </div>
             </div>
 

@@ -114,6 +114,8 @@ const nextPageBtns = document.querySelectorAll('.nextPageBtn');
 const lastPageBtns = document.querySelectorAll('.lastPageBtn');
 const loadMoreBtns = document.querySelectorAll('.load-more-btn');
 
+
+const groupHeaders = document.querySelectorAll('.group-header');
 const filtersHeader = document.getElementById('filtersHeader');
 const filtersToggle = document.getElementById('filtersToggle');
 const filtersContent = document.getElementById('filtersContent');
@@ -921,7 +923,7 @@ function renderPageNumbers() {
 async function loadPricesAndRender() {
     filteredTransfers = applyFilters(allTransfers);
 
-    // Загружаем цены
+    // Загружаем цены для executeOrder и createOrder
     const needPrice = filteredTransfers.some(t => {
         const method = getMethod(t);
         return (method === 'executeOrder' || method === 'createOrder') && !t._price;
@@ -931,56 +933,9 @@ async function loadPricesAndRender() {
         await enrichWithPrices(filteredTransfers);
     }
 
-    // --- НОВОЕ: Загружаем миниатюры для NFT ---
-    const needImage = filteredTransfers.some(t => {
-        const tokenType = t.token?.type || '';
-        const isNFT = tokenType === 'ERC-721' || tokenType === 'ERC-1155';
-        const hasImage = t.total?.token_instance?.image_url || t.total?.token_instance?.media_url;
-        return isNFT && !hasImage;
-    });
-    if (needImage) {
-        showStatus('Загрузка миниатюр для NFT...', 'info');
-        await enrichWithNFTImages(filteredTransfers);
-    }
-
     renderTransfers(true);
 }
 
-async function enrichWithNFTImages(transfers) {
-    // Находим NFT-транзакции без image_url
-    const needImage = transfers.filter(t => {
-        const tokenType = t.token?.type || '';
-        const isNFT = tokenType === 'ERC-721' || tokenType === 'ERC-1155';
-        const hasImage = t.total?.token_instance?.image_url || t.total?.token_instance?.media_url;
-        return isNFT && !hasImage;
-    });
-
-    if (needImage.length === 0) return;
-
-    console.log(`🖼️ Загружаем миниатюры для ${needImage.length} NFT...`);
-
-    // Загружаем по одной с задержкой
-    for (const tx of needImage) {
-        try {
-            const url = `${API_BASE_URL}/transactions/${tx.transaction_hash}`;
-            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            if (response.ok) {
-                const data = await response.json();
-                // Ищем token_instance в данных транзакции
-                const tokenTransfer = data.token_transfers?.[0] || data.token_transfers?.find(t => t.token?.type === 'ERC-721' || t.token?.type === 'ERC-1155');
-                if (tokenTransfer?.token_instance) {
-                    // Обновляем данные в allTransfers
-                    tx.total.token_instance = tokenTransfer.token_instance;
-                    tx._imageUpdated = true;
-                }
-            }
-        } catch (e) {
-            console.error('Ошибка загрузки миниатюры:', e);
-        }
-        // Задержка между запросами (300ms)
-        await new Promise(resolve => setTimeout(resolve, 300));
-    }
-}
 
 // --- API ЗАПРОСЫ ---
 function normalizeAdvancedFilterItem(item) {
@@ -1335,6 +1290,46 @@ function toggleFilters() {
     localStorage.setItem('filtersCollapsed', isCollapsed);
 }
 
+// --- СВОРАЧИВАНИЕ ГРУПП ФИЛЬТРОВ ---
+function toggleGroup(groupHeader) {
+    const content = groupHeader.nextElementSibling;
+    const toggle = groupHeader.querySelector('.group-toggle');
+    if (content) {
+        content.classList.toggle('collapsed');
+        if (toggle) toggle.classList.toggle('collapsed');
+        // Сохраняем состояние группы в localStorage
+        const groupId = groupHeader.dataset.group;
+        if (groupId) {
+            const isCollapsed = content.classList.contains('collapsed');
+            localStorage.setItem(`group_${groupId}`, isCollapsed);
+        }
+    }
+}
+
+function loadGroupStates() {
+    groupHeaders.forEach(header => {
+        const groupId = header.dataset.group;
+        if (groupId) {
+            const isCollapsed = localStorage.getItem(`group_${groupId}`) === 'true';
+            const content = header.nextElementSibling;
+            const toggle = header.querySelector('.group-toggle');
+            if (isCollapsed && content) {
+                content.classList.add('collapsed');
+                if (toggle) toggle.classList.add('collapsed');
+            }
+        }
+    });
+}
+
+// Привязываем обработчики
+groupHeaders.forEach(header => {
+    header.addEventListener('click', function(e) {
+        // Игнорируем клик по чекбоксу внутри заголовка (если такие появятся)
+        if (e.target.closest('label')) return;
+        toggleGroup(this);
+    });
+});
+
 filtersHeader.addEventListener('click', (e) => {
     if (e.target.closest('.filters-toggle')) return;
     toggleFilters();
@@ -1415,6 +1410,24 @@ loadMoreBtns.forEach(btn => btn.addEventListener('click', loadMoreHandler));
 
 // --- ИНИЦИАЛИЗАЦИЯ ---
 document.addEventListener('DOMContentLoaded', () => {
+	loadGroupStates();
+    // 1. Проверяем параметр address в URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressParam = urlParams.get('address');
+
+    // 2. Если параметр передан и это валидный адрес
+    if (addressParam && addressParam.startsWith('0x')) {
+        // Сохраняем в историю
+        saveAddressHistory(addressParam);
+        // Устанавливаем в поле ввода
+        addressInput.value = addressParam;
+        // Загружаем историю
+        loadHistory(addressParam, tokenTypeFilter.value, true);
+        showStatus(`Загрузка данных для адреса ${addressParam}...`, 'info');
+        return; // Выходим, чтобы не выполнять остальную логику
+    }
+
+    // 3. Если параметра нет или он невалидный — стандартная логика
     const history = loadAddressHistory();
     updateDatalist(history);
     if (history.length > 0) {
