@@ -58,7 +58,7 @@
             <!-- Фильтры -->
             <div class="filters">
                 <div class="filters-header" id="filtersHeader">
-                    <span class="filters-title">🔍 Фильтры</span>
+                    <span class="filters-title">🔍 Фильтры и инструменты</span>
                     <button class="filters-toggle" id="filtersToggle" aria-label="Свернуть/развернуть фильтры">
                         <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -266,20 +266,35 @@
         </div>
     </div>
 
-    <!-- Группа: Расширенные фильтры (пока пустая) -->
-    <div class="filter-group-collapsible">
-        <div class="group-header" data-group="advanced">
-            <span class="group-title">🔧 Расширенные фильтры</span>
-            <button class="group-toggle" aria-label="Свернуть/развернуть группу">
-                <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-            </button>
-        </div>
-        <div class="group-content">
-            <!-- Здесь будут новые фильтры -->
-        </div>
+<!-- Группа: Расширенные фильтры -->
+<div class="filter-group-collapsible">
+    <div class="group-header" data-group="advanced">
+        <span class="group-title">🔧 Advanced</span>
+        <button class="group-toggle" aria-label="Свернуть/развернуть группу">
+            <svg class="group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
     </div>
+    <div class="group-content">
+<div class="advanced-tools">
+    <label class="advanced-checkbox">
+        <input type="checkbox" id="enableNFT" /> Включить NFT
+    </label>
+    <div class="rarity-filter-wrapper" id="rarityFilterWrapper" style="display: none;">
+        <label class="rarity-filter-label">Редкость:</label>
+        <select id="rarityFilter">
+            <option value="all">Все</option>
+            <option value="1">Common</option>
+            <option value="2">Uncommon</option>
+            <option value="3">Rare</option>
+            <option value="4">Epic</option>
+            <option value="5">Legendary</option>
+        </select>
+    </div>
+</div>
+    </div>
+</div>
 </div>
                 </div>
             </div>
@@ -346,6 +361,8 @@
         }
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="NFT/pixel_nft_abi.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

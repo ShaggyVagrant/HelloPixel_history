@@ -114,18 +114,18 @@ const nextPageBtns = document.querySelectorAll('.nextPageBtn');
 const lastPageBtns = document.querySelectorAll('.lastPageBtn');
 const loadMoreBtns = document.querySelectorAll('.load-more-btn');
 
-
-const groupHeaders = document.querySelectorAll('.group-header');
 const filtersHeader = document.getElementById('filtersHeader');
 const filtersToggle = document.getElementById('filtersToggle');
 const filtersContent = document.getElementById('filtersContent');
-
 
 const tokenSymbolFilter = document.getElementById('tokenSymbolFilter');
 const startDateFilter = document.getElementById('startDateFilter');
 const endDateFilter = document.getElementById('endDateFilter');
 const applyDateFilter = document.getElementById('applyDateFilter');
 const clearDateFilter = document.getElementById('clearDateFilter');
+const enableNFTCheck = document.getElementById('enableNFT');
+const rarityFilter = document.getElementById('rarityFilter');
+const rarityFilterWrapper = document.getElementById('rarityFilterWrapper');
 
 const sortRadios = document.querySelectorAll('input[name="sortOrder"]');
 
@@ -239,6 +239,111 @@ function updateDatalist(history) {
 }
 
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+function updateRarityFilterVisibility() {
+    const isNFTEnabled = enableNFTCheck && enableNFTCheck.checked;
+    const isPXLNFTSelected = tokenSymbolFilter.value === 'PXLNFT';
+    const shouldShow = isNFTEnabled && isPXLNFTSelected;
+    rarityFilterWrapper.style.display = shouldShow ? 'flex' : 'none';
+    if (!shouldShow) {
+        rarityFilter.value = 'all'; // сбрасываем при скрытии
+    }
+}
+// --- ЗАГРУЗКА ДАННЫХ NFT ИЗ КОНТРАКТА ---
+async function fetchNFTData(tokenId, network = 'songbird') {
+    try {
+        const rpcUrl = network === 'songbird'
+            ? 'https://songbird-api.flare.network/ext/bc/C/rpc'
+            : 'https://mainnet.skalenodes.com/v1/elated-tan-skat';
+
+        const contractAddress = network === 'songbird'
+            ? '0x41a7435EF2CBd77df7C6966Af4E62a9B12416398'
+            : '0xcB48dF8e2FE472D8Be277348683bBD401Cab6201';
+
+        const web3 = new Web3(rpcUrl);
+        const contract = new web3.eth.Contract(window.pixelNFTABI, contractAddress);
+
+        const NFT_data = await contract.methods.getTokenType(tokenId).call();
+        const collections = await contract.methods.getCollections().call();
+        const collectionName = collections[NFT_data.collectionId] || 'Unknown';
+
+        let ownerAddress = null;
+        try {
+            ownerAddress = await contract.methods.ownerOf(tokenId).call();
+            if (ownerAddress === '0x0000000000000000000000000000000000000000') {
+                ownerAddress = null;
+            }
+        } catch (e) {}
+
+        let imageUrl = NFT_data.tokenURI || '';
+        if (imageUrl && imageUrl.includes('gateway.dedrive.io/v1/access/')) {
+            const urlParts = imageUrl.split('/');
+            const hash = urlParts[urlParts.length - 1];
+            imageUrl = `https://storage.hellopixel.network/nft/dedrive/${hash}.png`;
+        }
+
+        return {
+            ...NFT_data,
+            collectionName,
+            ownerAddress,
+            imageUrl,
+            rarity: Number(NFT_data.rarity),
+            tokenId: String(tokenId)
+        };
+    } catch (error) {
+        console.error(`Ошибка загрузки NFT ${tokenId}:`, error);
+        return null;
+    }
+}
+
+// --- ОБОГАЩЕНИЕ ТРАНЗАКЦИЙ ДАННЫМИ NFT ---
+async function enrichWithNFTData(transfers) {
+    const needNFT = transfers.filter(t => {
+        const tokenId = t.total?.token_id || t.token_id || t.tokenId;
+        return tokenId && !t._nftData;
+    });
+
+    if (needNFT.length === 0) return;
+
+    console.log(`🖼️ Загружаем данные NFT для ${needNFT.length} токенов...`);
+
+    for (const tx of needNFT) {
+        const tokenId = tx.total?.token_id || tx.token_id || tx.tokenId;
+        if (tokenId) {
+            const nftData = await fetchNFTData(tokenId);
+            if (nftData) {
+                tx._nftData = nftData;
+                // Обновляем image_url для отображения
+                if (nftData.imageUrl) {
+                    if (!tx.total) tx.total = {};
+                    if (!tx.total.token_instance) tx.total.token_instance = {};
+                    tx.total.token_instance.image_url = nftData.imageUrl;
+                    tx.total.token_instance.name = nftData.name || '';
+                }
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+}
+
+
+// --- СОХРАНЕНИЕ СОСТОЯНИЯ ЧЕКБОКСА "Включить NFT" ---
+function loadNFTCheckboxState() {
+    const saved = localStorage.getItem('enableNFT');
+    if (saved === 'true') {
+        enableNFTCheck.checked = true;
+        // Если адрес уже загружен, перезагружаем данные с NFT
+        if (currentAddress) {
+            loadPricesAndRender();
+        }
+    } else {
+        enableNFTCheck.checked = false;
+    }
+}
+
+function saveNFTCheckboxState() {
+    localStorage.setItem('enableNFT', enableNFTCheck.checked);
+}
+
 // --- НАСТРОЙКА: порядок сортировки ---
 function loadSortOrder() {
     const saved = localStorage.getItem('sortOrder');
@@ -678,6 +783,16 @@ function applyFilters(transfers) {
             return selectedMethods.includes(method);
         });
     }
+    // --- Фильтр по редкости NFT ---
+    const rarityValue = rarityFilter.value;
+    if (rarityValue !== 'all' && enableNFTCheck && enableNFTCheck.checked) {
+        result = result.filter(t => {
+            const nftData = t._nftData;
+            if (!nftData) return false;
+            return String(nftData.rarity) === rarityValue;
+        });
+    }
+
     return result;
 }
 
@@ -741,21 +856,32 @@ const tokenInstance = transfer.total?.token_instance || {};
 const nftImageUrl = tokenInstance.image_url || tokenInstance.media_url || '';
 const nftName = tokenInstance.metadata?.name || tokenInstance.name || '';
 
+// --- ДАННЫЕ ИЗ КОНТРАКТА (если загружены) ---
+const nftData = transfer._nftData || {};
+const rarity = nftData.rarity || 0;
+// Цвета из styles_nft.css
+const rarityColors = ['', '#ffffff', '#00ff66', '#00a2ff', '#cc00ff', '#ff7700'];
+const rarityGlow = ['', 'rgba(255,255,255,0.3)', 'rgba(0,255,102,0.4)', 'rgba(0,162,255,0.4)', 'rgba(204,0,255,0.4)', 'rgba(255,119,0,0.4)'];
+const rarityBorder = rarity > 0 ? `6px solid ${rarityColors[rarity]}` : 'none';
+const rarityShadow = rarity > 0 ? `0 0 20px ${rarityGlow[rarity]}` : 'none';
+
+// Рамка показывается только если чекбокс включён и данные загружены
+const showRarity = enableNFTCheck && enableNFTCheck.checked && rarity > 0;
+
 let tokenIdLink = '—';
 if (showTokenId && tokenId) {
     const encodedTokenId = encodeURIComponent(tokenId);
-
-    // Если есть изображение — показываем его как кликабельную миниатюру
     if (nftImageUrl) {
         tokenIdLink = `<a href="./NFT/NFT_1.html?tokenId=${encodedTokenId}" target="_blank" class="token-link" title="${nftName || tokenId}" style="display: block; text-align: right;">
-    <img src="${nftImageUrl}"
-         alt="NFT ${tokenId}"
-         style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; display: block; margin-left: auto; margin-right: 0; transition: transform 0.2s;"
-         onmouseover="this.style.transform='scale(1.1)'"
-         onmouseout="this.style.transform='scale(1)'" />
-</a>`;
+            <div style="border: ${showRarity ? rarityBorder : 'none'}; border-radius: 6px; box-shadow: ${showRarity ? rarityShadow : 'none'}; padding: ${showRarity ? '2px' : '0'}; display: inline-block; margin-left: auto; margin-right: 0;">
+                <img src="${nftImageUrl}"
+                     alt="NFT ${tokenId}"
+                     style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; display: block; transition: transform 0.2s;"
+                     onmouseover="this.style.transform='scale(1.05)'"
+                     onmouseout="this.style.transform='scale(1)'" />
+            </div>
+        </a>`;
     } else {
-        // Если изображения нет — показываем ID как ссылку
         tokenIdLink = `<a href="./NFT/NFT_1.html?tokenId=${encodedTokenId}" target="_blank" class="token-link">${tokenId}</a>`;
     }
 }
@@ -919,11 +1045,15 @@ function renderPageNumbers() {
     });
 }
 
-// --- Загрузка цен (обёртка) ---
+// --- Загрузка цен и NFT (асинхронно, не блокирует UI) ---
 async function loadPricesAndRender() {
+    // Обновляем filteredTransfers
     filteredTransfers = applyFilters(allTransfers);
 
-    // Загружаем цены для executeOrder и createOrder
+    // 1. Мгновенно отображаем таблицу
+    renderTransfers(true);
+
+    // 2. Загружаем цены для executeOrder/createOrder (из filteredTransfers)
     const needPrice = filteredTransfers.some(t => {
         const method = getMethod(t);
         return (method === 'executeOrder' || method === 'createOrder') && !t._price;
@@ -931,9 +1061,32 @@ async function loadPricesAndRender() {
     if (needPrice) {
         showStatus('Загрузка цен для покупок...', 'info');
         await enrichWithPrices(filteredTransfers);
+        renderTransfers(false);
     }
 
-    renderTransfers(true);
+    // 3. Если чекбокс включён, загружаем данные NFT (из allTransfers, но обновляем filteredTransfers)
+    let needNFT = false;
+    if (enableNFTCheck && enableNFTCheck.checked) {
+        // Проверяем все транзакции, а не только отфильтрованные
+        const allNeedNFT = allTransfers.some(t => {
+            const tokenId = t.total?.token_id || t.token_id || t.tokenId;
+            return tokenId && !t._nftData;
+        });
+        if (allNeedNFT) {
+            needNFT = true;
+            showStatus('Загрузка данных NFT...', 'info');
+            // Загружаем для всех транзакций
+            await enrichWithNFTData(allTransfers);
+            // После загрузки обновляем filteredTransfers
+            filteredTransfers = applyFilters(allTransfers);
+            renderTransfers(false);
+        }
+    }
+
+    // 4. Итоговый статус
+    if (!needPrice && !needNFT) {
+        showStatus(`Найдено ${filteredTransfers.length} записей.`, 'success');
+    }
 }
 
 
@@ -1065,6 +1218,15 @@ async function loadMorePages(count = 1, showIndicator = false) {
         setLoadMoreButtonLoading(false);
         showLoadingIndicator(false);
     }
+    if (showIndicator) {
+    setLoadMoreButtonLoading(false);
+    showLoadingIndicator(false);
+}
+// Обновляем фильтры и подгружаем NFT/цены
+if (currentAddress) {
+    filteredTransfers = applyFilters(allTransfers);
+    await loadPricesAndRender();
+}
     return loaded;
 }
 
@@ -1290,46 +1452,6 @@ function toggleFilters() {
     localStorage.setItem('filtersCollapsed', isCollapsed);
 }
 
-// --- СВОРАЧИВАНИЕ ГРУПП ФИЛЬТРОВ ---
-function toggleGroup(groupHeader) {
-    const content = groupHeader.nextElementSibling;
-    const toggle = groupHeader.querySelector('.group-toggle');
-    if (content) {
-        content.classList.toggle('collapsed');
-        if (toggle) toggle.classList.toggle('collapsed');
-        // Сохраняем состояние группы в localStorage
-        const groupId = groupHeader.dataset.group;
-        if (groupId) {
-            const isCollapsed = content.classList.contains('collapsed');
-            localStorage.setItem(`group_${groupId}`, isCollapsed);
-        }
-    }
-}
-
-function loadGroupStates() {
-    groupHeaders.forEach(header => {
-        const groupId = header.dataset.group;
-        if (groupId) {
-            const isCollapsed = localStorage.getItem(`group_${groupId}`) === 'true';
-            const content = header.nextElementSibling;
-            const toggle = header.querySelector('.group-toggle');
-            if (isCollapsed && content) {
-                content.classList.add('collapsed');
-                if (toggle) toggle.classList.add('collapsed');
-            }
-        }
-    });
-}
-
-// Привязываем обработчики
-groupHeaders.forEach(header => {
-    header.addEventListener('click', function(e) {
-        // Игнорируем клик по чекбоксу внутри заголовка (если такие появятся)
-        if (e.target.closest('label')) return;
-        toggleGroup(this);
-    });
-});
-
 filtersHeader.addEventListener('click', (e) => {
     if (e.target.closest('.filters-toggle')) return;
     toggleFilters();
@@ -1339,6 +1461,21 @@ filtersToggle.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleFilters();
 });
+
+
+// --- Обработчик чекбокса "Включить NFT" ---
+enableNFTCheck.addEventListener('change', function() {
+    saveNFTCheckboxState();
+    updateRarityFilterVisibility();
+    if (this.checked && currentAddress) {
+        loadPricesAndRender();
+    } else if (!this.checked && currentAddress) {
+        renderTransfers(true);
+    }
+});
+
+
+rarityFilter.addEventListener('change', onFilterChange);
 
 // --- ПРИВЯЗКА СОБЫТИЙ ---
 fetchBtn.addEventListener('click', () => {
@@ -1371,7 +1508,10 @@ sortRadios.forEach(radio => {
 
 showIncomingCheck.addEventListener('change', onFilterChange);
 showOnlyOutgoingCheck.addEventListener('change', onFilterChange);
-tokenSymbolFilter.addEventListener('change', onFilterChange);
+tokenSymbolFilter.addEventListener('change', function() {
+    updateRarityFilterVisibility();
+    onFilterChange();
+});
 
 
 methodCheckboxes.forEach(checkbox => {
@@ -1408,36 +1548,82 @@ nextPageBtns.forEach(btn => btn.addEventListener('click', goToNextPage));
 lastPageBtns.forEach(btn => btn.addEventListener('click', goToLastPage));
 loadMoreBtns.forEach(btn => btn.addEventListener('click', loadMoreHandler));
 
-// --- ИНИЦИАЛИЗАЦИЯ ---
+// --- ИНИЦИАЛИЗАЦИЯ (исправленная) ---
 document.addEventListener('DOMContentLoaded', () => {
-	loadGroupStates();
-    // 1. Проверяем параметр address в URL
+    // --- 1. ГРУППЫ ФИЛЬТРОВ (инициализация после загрузки DOM) ---
+    const groupHeaders = document.querySelectorAll('.group-header');
+
+    function toggleGroup(groupHeader) {
+        const content = groupHeader.nextElementSibling;
+        const toggle = groupHeader.querySelector('.group-toggle');
+        if (content) {
+            content.classList.toggle('collapsed');
+            if (toggle) toggle.classList.toggle('collapsed');
+            const groupId = groupHeader.dataset.group;
+            if (groupId) {
+                const isCollapsed = content.classList.contains('collapsed');
+                localStorage.setItem(`group_${groupId}`, isCollapsed);
+            }
+        }
+    }
+
+    function loadGroupStates() {
+        groupHeaders.forEach(header => {
+            const groupId = header.dataset.group;
+            if (groupId) {
+                const isCollapsed = localStorage.getItem(`group_${groupId}`) === 'true';
+                const content = header.nextElementSibling;
+                const toggle = header.querySelector('.group-toggle');
+                if (isCollapsed && content) {
+                    content.classList.add('collapsed');
+                    if (toggle) toggle.classList.add('collapsed');
+                }
+            }
+        });
+    }
+
+    // Привязываем обработчики
+    groupHeaders.forEach(header => {
+        header.addEventListener('click', function(e) {
+            if (e.target.closest('label')) return;
+            toggleGroup(this);
+        });
+    });
+
+    // Загружаем сохранённые состояния
+    loadGroupStates();
+
+    // --- 2. ПАРАМЕТР ADDRESS В URL ---
     const urlParams = new URLSearchParams(window.location.search);
     const addressParam = urlParams.get('address');
 
-    // 2. Если параметр передан и это валидный адрес
     if (addressParam && addressParam.startsWith('0x')) {
-        // Сохраняем в историю
         saveAddressHistory(addressParam);
-        // Устанавливаем в поле ввода
         addressInput.value = addressParam;
-        // Загружаем историю
         loadHistory(addressParam, tokenTypeFilter.value, true);
         showStatus(`Загрузка данных для адреса ${addressParam}...`, 'info');
-        return; // Выходим, чтобы не выполнять остальную логику
+        // Важно: не возвращаем, чтобы выполнить loadSortOrder и checkChangelog
     }
 
-    // 3. Если параметра нет или он невалидный — стандартная логика
-    const history = loadAddressHistory();
-    updateDatalist(history);
-    if (history.length > 0) {
-        const lastAddress = history[0];
-        addressInput.value = lastAddress;
-        loadHistory(lastAddress, '', true);
-    } else {
-        addressInput.value = '';
-        showStatus('Введите адрес кошелька и нажмите "Получить историю"', 'info');
+    // --- 3. СТАНДАРТНАЯ ЛОГИКА (история адресов) ---
+    // Если параметр address был передан, то история уже загружена, но мы всё равно проверим
+    // Если адрес не передан или невалидный — загружаем последний из истории
+    if (!addressParam || !addressParam.startsWith('0x')) {
+        const history = loadAddressHistory();
+        updateDatalist(history);
+        if (history.length > 0) {
+            const lastAddress = history[0];
+            addressInput.value = lastAddress;
+            loadHistory(lastAddress, '', true);
+        } else {
+            addressInput.value = '';
+            showStatus('Введите адрес кошелька и нажмите "Получить историю"', 'info');
+        }
     }
+
+    // --- 4. ОСТАЛЬНЫЕ НАСТРОЙКИ ---
     loadSortOrder();
+    loadNFTCheckboxState();
+    updateRarityFilterVisibility();
     checkChangelog();
 });

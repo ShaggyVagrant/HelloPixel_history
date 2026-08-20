@@ -719,8 +719,8 @@ tr:hover td {
 
 /* ----- Группировка фильтров ----- */
 .filter-group-collapsible {
-    border-bottom: 1px solid #f3f4f6;
-    padding: 2px 0;  /* было 4px 0 */
+    border-bottom: none;           /* убираем разделитель */
+    padding: 0;
 }
 .filter-group-collapsible:last-child {
     border-bottom: none;
@@ -730,7 +730,7 @@ tr:hover td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 6px;  /* было 6px 8px */
+    padding: 2px 4px;              /* уменьшено */
     cursor: pointer;
     user-select: none;
     border-radius: 6px;
@@ -766,20 +766,20 @@ tr:hover td {
 }
 
 .group-content {
-    padding: 2px 6px 6px 6px;  /* было 4px 8px 8px 8px */
+    padding: 0 4px 4px 4px;        /* уменьшено */
     overflow: hidden;
     transition: max-height 0.3s ease, padding 0.3s ease;
     max-height: 500px;
 }
 .group-content.collapsed {
     max-height: 0;
-    padding: 0 6px;  /* было 0 8px */
+    padding: 0 4px;
 }
 .group-content label {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 1px 0;  /* было 2px 0 */
+    padding: 0;                    /* убраны отступы */
     font-size: 13px;
     cursor: pointer;
     color: #4b5563;
@@ -792,7 +792,69 @@ tr:hover td {
     height: 14px;
     accent-color: #4f46e5;
     cursor: pointer;
-}}
+}
+
+/* ----- Инструменты (Advanced) ----- */
+.advanced-tools {
+    padding: 6px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.advanced-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #4b5563;
+    cursor: pointer;
+    user-select: none;
+}
+.advanced-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+}
+.advanced-checkbox:hover {
+    color: #1a1a2e;
+}
+
+/* ----- Фильтр по редкости NFT ----- */
+.rarity-filter-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.rarity-filter-label {
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.rarity-filter-wrapper select {
+    padding: 4px 10px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    min-width: 120px;
+}
+.rarity-filter-wrapper select:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+}
+.rarity-filter-wrapper select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
 /* =====================================================
    МОБИЛЬНЫЕ КАРТОЧКИ (v4 — простая и ровная вёрстка)
@@ -1105,5 +1167,3 @@ tr:hover td {
     accent-color: #4f46e5;
     cursor: pointer;
 }
-
-
