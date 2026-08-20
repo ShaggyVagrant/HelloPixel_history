@@ -248,6 +248,43 @@ function updateRarityFilterVisibility() {
         rarityFilter.value = 'all'; // сбрасываем при скрытии
     }
 }
+
+// --- КНОПКА ОБНОВЛЕНИЯ ПРИЛОЖЕНИЯ ---
+document.getElementById('clearCacheBtn').addEventListener('click', async function() {
+    try {
+        // Принудительно останавливаем циклы загрузки в loadHistory и loadMorePages
+        isLoading = false;
+
+        showStatus('Обновление приложения...', 'info');
+
+        // 1. Удаляем кэш файлов (стили, картинки, скрипты)
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+
+        // 2. Отключаем Service Worker (только если сайт запущен на http/https сервере)
+        const isHttp = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+        if (isHttp && 'navigator' in window && 'serviceWorker' in navigator) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let reg of registrations) {
+                    await reg.unregister();
+                }
+            } catch (error) {
+                console.warn("Не удалось отключить Service Worker:", error);
+            }
+        }
+
+        // 3. Перезагружаем страницу с уникальным параметром для обхода кэша браузера
+        window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+    } catch (error) {
+        console.error('Ошибка обновления:', error);
+        showStatus('Ошибка обновления. Попробуйте очистить кэш вручную.', 'error');
+    }
+});
+
+
 // --- ЗАГРУЗКА ДАННЫХ NFT ИЗ КОНТРАКТА ---
 async function fetchNFTData(tokenId, network = 'songbird') {
     try {
