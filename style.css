@@ -856,6 +856,21 @@ tr:hover td {
     cursor: not-allowed;
 }
 
+
+/* Стили для группы "Тип транзакции" */
+.filter-group-collapsible .group-content label:has(.tx-type-filter) {
+    padding: 4px 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.filter-group-collapsible .group-content label:has(.tx-type-filter:checked) {
+    background: #eef2ff;
+    border-left: 3px solid #4f46e5;
+    padding-left: 5px;
+}
+
 /* =====================================================
    МОБИЛЬНЫЕ КАРТОЧКИ (v4 — простая и ровная вёрстка)
    ===================================================== */

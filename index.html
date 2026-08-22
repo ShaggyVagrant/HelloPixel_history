@@ -50,10 +50,15 @@
             <div id="statusMessage" class="status-message"></div>
 
             <!-- Статистика -->
-            <div id="statsBlock" class="stats" style="display: none;">
-                 <span>📊 Всего трансферов: <strong id="totalCount">0</strong></span>
-                 <span>🪙 Показано: <strong id="displayedCount">0</strong></span>
-            </div>
+<div id="statsBlock" class="stats" style="display: none;">
+    <div id="statsMain">
+        <span>📊 Всего трансферов: <strong id="totalCount">0</strong></span>
+        <span>🪙 Показано: <strong id="displayedCount">0</strong></span>
+    </div>
+    <div id="statsExtra" style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <!-- Сюда будет вставляться расширенная статистика -->
+    </div>
+</div>
 
             <!-- Фильтры -->
             <div class="filters">
@@ -112,7 +117,9 @@
 
 <div class="filter-group method-filters">
     <span class="filter-label">📋 Методы вызова:</span>
-
+                        <label>
+                            <input type="checkbox" class="method-checkbox" data-method="all" checked /> Все
+                        </label>
     <!-- Группа: От команды -->
     <div class="filter-group-collapsible">
         <div class="group-header" data-group="command">
@@ -198,6 +205,9 @@
             </label>
             <label>
                 <input type="checkbox" class="method-checkbox" data-method="executeOrder" /> Куплен на рынке
+            </label>
+            <label>
+                <input type="checkbox" class="method-checkbox" data-method="executeOrderInternal" /> Продан на рынке
             </label>
             <label>
                 <input type="checkbox" class="method-checkbox" data-method="cancelOrder" /> Снято с продажи
@@ -292,6 +302,15 @@
             <option value="5">Legendary</option>
         </select>
     </div>
+<!-- В разделе Advanced -->
+<div class="filter-group">
+    <label>
+        <input type="checkbox" id="showOnlyInternal" class="tx-type-filter" /> Только internal
+    </label>
+    <label>
+        <input type="checkbox" id="showOnlyNormal" class="tx-type-filter" /> Только обычные
+    </label>
+</div>
     <button id="clearCacheBtn" class="advanced-btn" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">
         🔄 Обновить приложение
     </button>
