@@ -961,11 +961,41 @@ async function enrichWithPrices(transfers) {
 
 // --- ПОЛНАЯ ВЕРСИЯ applyFilters С ПОДДЕРЖКОЙ INTERNAL ---
 function applyFilters(transfers) {
-    if (!transfers || transfers.length === 0) return [];
-
     let result = [...transfers];
 
-    // 1. Направление
+    // 1. СНАЧАЛА фильтр по internal/normal
+    const internalOnly = document.getElementById('showOnlyInternal')?.checked || false;
+    const normalOnly = document.getElementById('showOnlyNormal')?.checked || false;
+
+    if (internalOnly && !normalOnly) {
+        result = result.filter(t => t._isInternal === true);
+    } else if (normalOnly && !internalOnly) {
+        result = result.filter(t => !t._isInternal);
+    }
+
+    // 2. ПОТОМ фильтр по дате для внутренних (только если они остались)
+    const allNormals = allTransfers.filter(t => !t._isInternal);
+    let lastNormalDate = null;
+    if (allNormals.length > 0) {
+        const sortedNormals = [...allNormals].sort((a, b) => {
+            const tsA = new Date(a.timestamp || 0).getTime();
+            const tsB = new Date(b.timestamp || 0).getTime();
+            return tsA - tsB;
+        });
+        lastNormalDate = new Date(sortedNormals[0].timestamp);
+    }
+
+    if (lastNormalDate) {
+        result = result.filter(t => {
+            if (t._isInternal) {
+                const txDate = new Date(t.timestamp || 0);
+                return txDate >= lastNormalDate;
+            }
+            return true;
+        });
+    }
+
+    // === 1. ФИЛЬТР ПО НАПРАВЛЕНИЮ ===
     const incomingOnly = document.getElementById('showOnlyIncoming')?.checked || false;
     const outgoingOnly = document.getElementById('showOnlyOutgoing')?.checked || false;
 
@@ -975,40 +1005,25 @@ function applyFilters(transfers) {
         result = result.filter(t => !isIncoming(t));
     }
 
-    // 2. Токен
-    const tokenFilter = document.getElementById('tokenSymbolFilter')?.value || 'all';
-    if (tokenFilter !== 'all') {
+    // === 2. ФИЛЬТР ПО ТОКЕНУ ===
+    const selectedToken = document.getElementById('tokenSymbolFilter')?.value || 'all';
+    if (selectedToken !== 'all') {
         result = result.filter(t => {
             const symbol = (t.token?.symbol || '').toUpperCase();
-            return symbol === tokenFilter.toUpperCase();
+            return symbol === selectedToken.toUpperCase();
         });
     }
 
-    // 3. Методы
+    // === 3. ФИЛЬТР ПО МЕТОДАМ ===
     const selectedMethods = getSelectedMethods();
-    if (selectedMethods && selectedMethods.length > 0) {
+    if (selectedMethods !== null && selectedMethods.length > 0) {
         result = result.filter(t => {
             const method = getMethod(t);
             return selectedMethods.includes(method);
         });
     }
 
-    // 4. INTERNAL/NORMAL ФИЛЬТР (С ОТЛАДКОЙ)
-// 4. INTERNAL/NORMAL ФИЛЬТР (ПРИНУДИТЕЛЬНОЕ ЧТЕНИЕ ИЗ DOM)
-// ВАЖНО: каждый раз читаем заново, а не используем кешированные значения
-const internalElement = document.getElementById('showOnlyInternal');
-const normalElement = document.getElementById('showOnlyNormal');
-
-const internalOnly = internalElement ? internalElement.checked : false;
-const normalOnly = normalElement ? normalElement.checked : false;
-
-if (internalOnly && !normalOnly) {
-    result = result.filter(t => t._isInternal === true);
-} else if (normalOnly && !internalOnly) {
-    result = result.filter(t => !t._isInternal);
-} else {
-}
-    // 5. Редкость NFT
+    // === 4. ФИЛЬТР ПО РЕДКОСТИ NFT ===
     const rarityValue = document.getElementById('rarityFilter')?.value || 'all';
     const enableNFT = document.getElementById('enableNFT')?.checked || false;
 
@@ -1018,6 +1033,7 @@ if (internalOnly && !normalOnly) {
             return nftData && String(nftData.rarity) === rarityValue;
         });
     }
+
     return result;
 }
 
@@ -1443,58 +1459,108 @@ async function loadMorePages(count = 1, showIndicator = false) {
     let currentNextNormal = nextPageParams?.normal || null;
     let currentNextInternal = nextPageParams?.internal || null;
 
+    // Исправлено: загружаем, пока есть хоть один тип пагинации
     while (loaded < count && (currentNextNormal || currentNextInternal) && !isLoading) {
         try {
-            // Загружаем оба типа параллельно, если есть пагинация
-            const promises = [];
-            const types = [];
-
+            // === 1. Загружаем следующую страницу обычных (если есть) ===
             if (currentNextNormal) {
-                promises.push(fetchTokenTransfers(currentAddress, tokenTypeFilter.value, currentNextNormal));
-                types.push('normal');
+                const normalData = await fetchTokenTransfers(currentAddress, tokenTypeFilter.value, currentNextNormal);
+                const newNormalItems = normalData.items || [];
+                currentNextNormal = normalData.next_page_params || null;
+                if (nextPageParams) nextPageParams.normal = currentNextNormal;
+
+                if (newNormalItems.length > 0) {
+                    const existingKeys = new Set(allTransfers.map(t =>
+                        `${t.transaction_hash}-${t.log_index}-normal`
+                    ));
+                    const uniqueNew = newNormalItems.filter(t => {
+                        const key = `${t.transaction_hash}-${t.log_index}-normal`;
+                        return !existingKeys.has(key);
+                    });
+                    if (uniqueNew.length > 0) {
+                        uniqueNew.forEach(t => getMethod(t));
+                        allTransfers = [...allTransfers, ...uniqueNew];
+                        console.log(`Добавлено ${uniqueNew.length} обычных транзакций`);
+                    }
+                }
             }
-            if (currentNextInternal) {
-                promises.push(fetchInternalTransfers(currentAddress, tokenTypeFilter.value, currentNextInternal));
-                types.push('internal');
-            }
 
-            if (promises.length === 0) break;
-
-            const results = await Promise.all(promises);
-
-            // Обрабатываем каждый результат
-            results.forEach((data, index) => {
-                const type = types[index];
-                const newItems = data.items || [];
-
-                // Фильтруем дубликаты
-                const existingKeys = new Set(allTransfers.map(t =>
-                    `${t.transaction_hash}-${t.log_index}-${t._isInternal ? 'internal' : 'normal'}`
-                ));
-
-                const uniqueNew = newItems.filter(t => {
-                    const key = `${t.transaction_hash}-${t.log_index}-${t._isInternal ? 'internal' : 'normal'}`;
-                    return !existingKeys.has(key);
+            // === 2. Пересчитываем дату последней обычной ===
+            const allNormals = allTransfers.filter(t => !t._isInternal);
+            let lastNormalDate = null;
+            if (allNormals.length > 0) {
+                const sortedNormals = [...allNormals].sort((a, b) => {
+                    const tsA = new Date(a.timestamp || 0).getTime();
+                    const tsB = new Date(b.timestamp || 0).getTime();
+                    return tsA - tsB;
                 });
+                lastNormalDate = new Date(sortedNormals[0].timestamp);
+            }
+            console.log('Новая дата последней обычной:', lastNormalDate);
 
-                if (uniqueNew.length > 0) {
-                    uniqueNew.forEach(t => getMethod(t));
-                    allTransfers = [...allTransfers, ...uniqueNew];
-                }
+            // === 3. Загружаем ВСЕ внутренние, которые подходят по дате (если есть пагинация) ===
+            if (lastNormalDate && currentNextInternal) {
+                let hasMoreInternal = true;
+                let loadedInternal = 0;
 
-                // Обновляем пагинацию для этого типа
-                if (type === 'normal') {
-                    currentNextNormal = data.next_page_params || null;
-                    if (nextPageParams) nextPageParams.normal = currentNextNormal;
-                } else {
-                    currentNextInternal = data.next_page_params || null;
+                while (hasMoreInternal && currentNextInternal) {
+                    const internalData = await fetchInternalTransfers(
+                        currentAddress,
+                        tokenTypeFilter.value,
+                        currentNextInternal
+                    );
+                    const newInternalItems = internalData.items || [];
+                    currentNextInternal = internalData.next_page_params || null;
                     if (nextPageParams) nextPageParams.internal = currentNextInternal;
-                }
-            });
 
+                    if (newInternalItems.length > 0) {
+                        // Фильтруем только те, что >= lastNormalDate
+                        const validItems = newInternalItems.filter(t => {
+                            const txDate = new Date(t.timestamp || 0);
+                            return txDate >= lastNormalDate;
+                        });
+
+                        if (validItems.length > 0) {
+                            const existingKeys = new Set(allTransfers.map(t =>
+                                `${t.transaction_hash}-${t.log_index}-internal`
+                            ));
+                            const uniqueNew = validItems.filter(t => {
+                                const key = `${t.transaction_hash}-${t.log_index}-internal`;
+                                return !existingKeys.has(key);
+                            });
+                            if (uniqueNew.length > 0) {
+                                uniqueNew.forEach(t => getMethod(t));
+                                allTransfers = [...allTransfers, ...uniqueNew];
+                                loadedInternal += uniqueNew.length;
+                                console.log(`Добавлено ${uniqueNew.length} внутренних транзакций (всего загружено ${loadedInternal})`);
+                            }
+                        }
+
+                        // Если среди новых нет подходящих по дате — выходим
+                        const anyValid = newInternalItems.some(t => {
+                            const txDate = new Date(t.timestamp || 0);
+                            return txDate >= lastNormalDate;
+                        });
+                        if (!anyValid) {
+                            console.log('Нет подходящих внутренних, выходим');
+                            hasMoreInternal = false;
+                        }
+                    } else {
+                        console.log('Нет новых внутренних транзакций');
+                        hasMoreInternal = false;
+                    }
+
+                    // Защита от бесконечного цикла (сбрасываем счетчик после каждой итерации)
+                    if (loadedInternal > 1000) {
+                        console.warn('Слишком много внутренних транзакций, останавливаем');
+                        hasMoreInternal = false;
+                    }
+                }
+            }
+
+            applySorting();
             loaded++;
             totalLoadedPages++;
-            applySorting();
 
         } catch (error) {
             console.error('Ошибка при догрузке:', error);
@@ -1516,69 +1582,55 @@ async function loadMorePages(count = 1, showIndicator = false) {
     return loaded;
 }
 
+
 // --- ОСНОВНАЯ ЗАГРУЗКА ИСТОРИИ ---
 async function loadHistory(address, tokenType = '', initialLoad = false) {
     if (!address || !address.startsWith('0x')) {
         showStatus('Пожалуйста, введите корректный адрес', 'error');
         return;
     }
+    if (isLoading) return;
 
     currentAddress = address;
-
-    if (isLoading) return;
     isLoading = true;
     fetchBtn.disabled = true;
     showStatus('Загрузка данных... (включая internal транзакции)', 'info');
 
     try {
         currentPage = 1;
-        nextPageParams = null;
         allTransfers = [];
         totalLoadedPages = 0;
 
-        // --- Параллельная загрузка обычных и internal транзакций ---
+        // Загружаем обычные и внутренние
         const [normalData, internalData] = await Promise.all([
             fetchTokenTransfers(address, tokenType),
             fetchInternalTransfers(address, tokenType)
         ]);
 
-
-        // Объединяем
-        const combinedItems = [...(normalData.items || []), ...(internalData.items || [])];
-
-        // Сортируем по времени (новые сверху, если не указано иное)
-        combinedItems.sort((a, b) => {
-            const tsA = new Date(a.timestamp || 0).getTime();
-            const tsB = new Date(b.timestamp || 0).getTime();
-            return tsB - tsA; // desc
-        });
-
-        allTransfers = combinedItems;
-
-        // Сохраняем пагинацию для обычных и internal отдельно
+        // Сохраняем пагинацию
         nextPageParams = {
             normal: normalData.next_page_params || null,
             internal: internalData.next_page_params || null
         };
 
+        // Объединяем ВСЕ транзакции (без фильтрации)
+        const combined = [...(normalData.items || []), ...(internalData.items || [])];
+
+        // Сортируем по времени
+        combined.sort((a, b) => {
+            const tsA = new Date(a.timestamp || 0).getTime();
+            const tsB = new Date(b.timestamp || 0).getTime();
+            return tsB - tsA;
+        });
+
+        // Сохраняем ВСЕ транзакции в allTransfers
+        allTransfers = combined;
         totalLoadedPages = 1;
         allTransfers.forEach(t => getMethod(t));
         saveAddressHistory(address);
 
-        // --- Автоматическая догрузка, если нужно ---
-        const hasDateFilter = !!(dateFilterStart || dateFilterEnd);
-
-        if (hasDateFilter) {
-            // Логика для диапазона дат (аналогично существующей)
-            // Но нужно загружать оба типа параллельно
-            await loadAllPagesForDateRange(address, tokenType);
-        } else if (initialLoad && (nextPageParams.normal || nextPageParams.internal)) {
-            await loadMorePages(INITIAL_LOAD_PAGES - 1, true);
-        }
-
         applySorting();
-        filteredTransfers = applyFilters(allTransfers);
-
+        filteredTransfers = applyFilters(allTransfers); // ← Фильтр применяется ТОЛЬКО здесь
         showStatus(`Загружено ${allTransfers.length} записей (включая internal)`, 'success');
 
     } catch (error) {
@@ -1673,9 +1725,11 @@ function goToPage(page) {
 async function loadMoreHandler() {
     if (!nextPageParams || isLoading) return;
     try {
+        const previousLength = allTransfers.length;
         const loaded = await loadMorePages(1, true);
         if (loaded > 0) {
-            showStatus(`Загружено ещё ${loaded * ITEMS_PER_PAGE} записей. Всего: ${allTransfers.length}`, 'success');
+            const added = allTransfers.length - previousLength;
+            showStatus(`Загружено ещё ${added} записей. Всего: ${allTransfers.length}`, 'success');
             filteredTransfers = applyFilters(allTransfers);
             renderTransfers(false);
             const needPrice = filteredTransfers.some(t => {
@@ -1751,7 +1805,6 @@ filtersToggle.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleFilters();
 });
-
 
 // --- Обработчик чекбокса "Включить NFT" ---
 enableNFTCheck.addEventListener('change', function() {
