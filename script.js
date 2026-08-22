@@ -1910,6 +1910,8 @@ tokenSymbolFilter.addEventListener('change', function() {
 methodCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
         const method = this.dataset.method;
+
+        // Логика для "Все"
         if (method === 'all') {
             if (this.checked) {
                 methodCheckboxes.forEach(cb => {
@@ -1925,15 +1927,18 @@ methodCheckboxes.forEach(checkbox => {
             if (!anySelected && allCheckbox) allCheckbox.checked = true;
         }
 
+        // === ЛОГИКА "ЗАПУСК УС" → "АВТОКЛЕЙМ" ===
         const startCheckbox = document.querySelector('.method-checkbox[data-method="start"]');
         const claimForUserCheckbox = document.querySelector('.method-checkbox[data-method="claimForUser"]');
-        if (startCheckbox && claimForUserCheckbox && startCheckbox.checked) {
+
+        // Если включили "Запуск УС" — включаем "Автоклейм"
+        if (method === 'start' && startCheckbox.checked && claimForUserCheckbox) {
             claimForUserCheckbox.checked = true;
         }
 
         onFilterChange();
     });
-});
+});;
 
 firstPageBtns.forEach(btn => btn.addEventListener('click', goToFirstPage));
 prevPageBtns.forEach(btn => btn.addEventListener('click', goToPrevPage));
