@@ -555,6 +555,10 @@ tr:hover td {
     background: #dbeafe;
     color: #1e40af;
 }
+.method-stop {
+    background: #f87171;
+    color: #7f1d1d;
+}
 .method-returnDroneAndClaimReward {
     background: #e0e7ff;
     color: #3730a3;

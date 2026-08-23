@@ -19,6 +19,8 @@ const CONFIG = {
         '0x2e1a7d4d': 'withdraw',
         '0x7f6b0b8a': 'mintForOne',
         '0x4a25d94a': 'burn',
+        '0x07da68f5': 'stop',
+        '0x95805dad': 'start',
         '0x3d95e3b2': 'createOrder',
         '0xae7b0333': 'executeOrder',
         '0x8d7c5f2e': 'claimFreeChest',
@@ -32,7 +34,7 @@ const CONFIG = {
         '0x8d5b1c3a': 'cancelOrder',
         '0x9e2c4a5b': 'buySpeedLevel',
         '0x01ce3d65': 'upgradeMine',
-        '0x1a2b3c4d': 'claimForUser',
+        '0x42b0f52f': 'claimForUser',
         '0x2b3c4d5e': 'claimReward',
         '0xa7c83989': 'transferFromUser',
         '0x0d707a50': 'unlockSlot',
@@ -170,6 +172,7 @@ const METHOD_COLORS = {
     'executeOrderInternal': 'method-executeOrder',
     'claimFreeChest': 'method-claimFreeChest',
     'start': 'method-start',
+    'stop': 'method-stop',
     'returnDroneAndClaimReward': 'method-returnDroneAndClaimReward',
     'purchaseChestForPXLs': 'method-purchaseChestForPXLs',
     'popolnenie_sindikata': 'method-popolnenie_sindikata',
@@ -200,6 +203,7 @@ const METHOD_LABELS = {
     'executeOrderInternal': 'Продан на рынке',
     'claimFreeChest': 'Открыть сундук',
     'start': 'Запуск УС',
+    'stop': 'Стоп УС',
     'returnDroneAndClaimReward': 'Клейм пыли',
     'purchaseChestForPXLs': 'Куплен дрон за PXLs',
     'popolnenie_sindikata': 'Пополнение синдиката',
@@ -280,17 +284,17 @@ function updateStats() {
 /**
  * Загрузка internal транзакций для адреса
  * @param {string} address - адрес кошелька
- * @param {string} tokenType - фильтр по типу (ERC-20, ERC-721, ERC-1155)
+ * @param {string} tokenType - фильтр по типу (ERC-20, ERC-721, ERC-1155) — API может игнорировать
  * @param {object|null} pageParams - параметры пагинации
  * @returns {Promise<{items: array, next_page_params: object|null}>}
  */
 async function fetchInternalTransfers(address, tokenType = '', pageParams = null) {
     const url = new URL(`${API_BASE_URL}/addresses/${address}/internal-transactions`);
 
-    // Фильтр по типу токена (если поддерживается)
-    if (tokenType) url.searchParams.append('type', tokenType);
+    if (tokenType) {
+        url.searchParams.append('type', tokenType);
+    }
 
-    // Пагинация
     if (pageParams) {
         for (const [key, value] of Object.entries(pageParams)) {
             if (value !== null && value !== undefined) {
@@ -312,38 +316,51 @@ async function fetchInternalTransfers(address, tokenType = '', pageParams = null
 
     const data = await response.json();
 
-    // Нормализуем данные под формат, совместимый с основными транзакциями
-    const normalizedItems = (data.items || []).map(item => ({
-        transaction_hash: item.hash || item.transaction_hash,
-        timestamp: item.timestamp || item.block_timestamp,
-        block_number: item.block_number,
-        log_index: item.transaction_index || item.log_index || 0,
-        from: item.from,
-        to: item.to,
-        token: item.token ? {
-            ...item.token,
-            type: item.token.type || item.type || 'ERC-20',
-            symbol: item.token.symbol || '',
-            name: item.token.name || '',
-            decimals: item.token.decimals || 18,
-            address: item.token.address || item.token.address_hash
-        } : null,
-        total: item.total || { value: item.value || '0' },
-        token_type: item.type || item.token?.type || 'ERC-20',
-        method: item.method || 'transfer', // fallback
-        method_name: item.method || null,
-        value: item.value || '0',
-        // Флаг, что это internal
-        _isInternal: true,
-        // Сохраняем родительский хэш, если есть
-        _parentTxHash: item.parent_hash || item.hash
-    }));
+    const normalizedItems = (data.items || []).map(item => {
+        // Уникальный индекс внутри tx: index → log_index → transaction_index → 0
+        const internalIndex = item.index ?? item.log_index ?? item.transaction_index ?? 0;
+        const rawValue = item.value || '0';
+        const hasNativeValue = parseFloat(rawValue) > 0;
+
+        return {
+            transaction_hash: item.transaction_hash || item.hash,
+            timestamp: item.timestamp || item.block_timestamp,
+            block_number: item.block_number,
+            // Важно: index, а не transaction_index — иначе все internal одной tx схлопываются
+            log_index: internalIndex,
+            from: item.from,
+            to: item.to,
+            token: item.token
+                ? {
+                    ...item.token,
+                    type: item.token.type || 'ERC-20',
+                    symbol: item.token.symbol || '',
+                    name: item.token.name || '',
+                    decimals: item.token.decimals ?? 18,
+                    address: item.token.address || item.token.address_hash
+                }
+                : null,
+            // Native value кладём и в total, и в value — render/фильтры читают оба
+            total: item.total || { value: rawValue },
+            value: rawValue,
+            token_type: hasNativeValue ? 'native' : (item.type || 'call'),
+            method: item.method || 'transfer',
+            method_name: item.method || null,
+            _isInternal: true,
+            _parentTxHash: item.transaction_hash || item.hash,
+            _internalIndex: internalIndex,
+            _success: item.success !== false,
+            _error: item.error || null
+        };
+    });
 
     return {
         items: normalizedItems,
         next_page_params: data.next_page_params || null
     };
 }
+
+
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 function updateRarityFilterVisibility() {
     const isNFTEnabled = enableNFTCheck && enableNFTCheck.checked;
@@ -804,39 +821,60 @@ function detectMethod(tx) {
 async function enrichInternalTransactions(transfers) {
     const internalTxs = transfers.filter(t =>
         t._isInternal === true &&
-        t.method === 'transfer' &&
+        (t.method === 'transfer' || !t._detectedMethod) &&
         !t._orderDetails
     );
 
     if (internalTxs.length === 0) return;
 
-    for (const tx of internalTxs) {
-        try {
-            const details = await fetchTransactionDetails(tx.transaction_hash);
-            if (!details || !details.decoded_input) continue;
+    const chunkSize = 5;
+    for (let i = 0; i < internalTxs.length; i += chunkSize) {
+        const chunk = internalTxs.slice(i, i + chunkSize);
 
-            const methodName = details.decoded_input.method_call || '';
-            const signature = details.decoded_input.method_id || '';
+        await Promise.all(chunk.map(async (tx) => {
+            try {
+                const details = await fetchTransactionDetails(tx.transaction_hash);
+                if (!details || !details.decoded_input) return;
 
-            // Если это executeOrder
-            if (methodName.includes('executeOrder') || signature === 'ae7b0333') {
-                const params = details.decoded_input.parameters || [];
+                const methodName = details.decoded_input.method_call || '';
+                const signature = (details.decoded_input.method_id || '').toLowerCase();
 
-                tx._orderDetails = {
-                    method: 'executeOrderInternal',
-                    tokenId: params.find(p => p.name === 'assetId')?.value,
-                    seller: params.find(p => p.name === 'seller')?.value,
-                    orderId: params.find(p => p.name === 'orderId')?.value,
-                    priceInWei: params.find(p => p.name === 'price')?.value,
-                };
+                // === executeOrder (Продан на рынке) ===
+                if (methodName.includes('executeOrder') || signature === 'ae7b0333') {
+                    const params = details.decoded_input.parameters || [];
+                    tx._orderDetails = {
+                        method: 'executeOrderInternal',
+                        tokenId: params.find(p => p.name === 'assetId')?.value,
+                        seller: params.find(p => p.name === 'seller')?.value,
+                        orderId: params.find(p => p.name === 'orderId')?.value,
+                        priceInWei: params.find(p => p.name === 'price')?.value,
+                    };
+                    tx._detectedMethod = 'executeOrderInternal';
+                    return;
+                }
 
-                // Переопределяем метод
-                tx._detectedMethod = 'executeOrderInternal';
+                // === stop (Стоп УС) ===
+                if (signature === '07da68f5' || methodName.includes('stop')) {
+                    tx._detectedMethod = 'stop';
+                    return;
+                }
+
+                // === start (Запуск УС) — на всякий случай ===
+                if (signature === '95805dad' || methodName.includes('start')) {
+                    tx._detectedMethod = 'start';
+                    return;
+                }
+
+                // === claimForUser (на случай, если internal с value SGB) ===
+                if (signature === '42b0f52f' || methodName.includes('claimForUser')) {
+                    tx._detectedMethod = 'claimForUser';
+                    return;
+                }
+
+            } catch (e) {
+                console.error(`Ошибка обогащения внутренней транзакции ${tx.transaction_hash}:`, e);
             }
-
-        } catch (e) {
-            console.error(`Ошибка обогащения внутренней транзакции ${tx.transaction_hash}:`, e);
-        }
+        }));
     }
 }
 
@@ -1007,11 +1045,15 @@ function applyFilters(transfers) {
 
     // === 2. ФИЛЬТР ПО ТОКЕНУ ===
     const selectedToken = document.getElementById('tokenSymbolFilter')?.value || 'all';
-    if (selectedToken !== 'all') {
-        result = result.filter(t => {
-            const symbol = (t.token?.symbol || '').toUpperCase();
-            return symbol === selectedToken.toUpperCase();
-        });
+   if (selectedToken !== 'all') {
+       result = result.filter(t => {
+        let symbol = (t.token?.symbol || '').toUpperCase();
+        // internal с value > 0 — это native
+        if (t._isInternal && parseFloat(t.value || t.total?.value || 0) > 0) {
+            symbol = NETWORK_TOKEN.toUpperCase();
+        }
+        return symbol === selectedToken.toUpperCase();
+       });
     }
 
     // === 3. ФИЛЬТР ПО МЕТОДАМ ===
@@ -1039,7 +1081,6 @@ function applyFilters(transfers) {
 
 
 // --- Рендеринг строки таблицы ---
-// --- ИСПРАВЛЕННАЯ ВЕРСИЯ renderTransferRow ---
 function renderTransferRow(transfer) {
     const tr = document.createElement('tr');
     const method = getMethod(transfer);
@@ -1053,10 +1094,10 @@ function renderTransferRow(transfer) {
 
     let methodLabel = getMethodLabel(method);
     if ((method === 'mint' || method === 'raspakovka_pyli') && transfer._dustAmount) {
-        const tokenSymbol = (transfer.token?.symbol || '').toUpperCase();
-        if (tokenSymbol === 'PXLD' || tokenSymbol === 'PXLDust') {
-            const amount = Math.round(transfer._dustAmount);
-            methodLabel = `${methodLabel} (${amount})`;
+        const tokenSymbolUpper = (transfer.token?.symbol || '').toUpperCase();
+        if (tokenSymbolUpper === 'PXLD' || tokenSymbolUpper === 'PXLDUST') {
+            const dustAmount = Math.round(transfer._dustAmount);
+            methodLabel = `${methodLabel} (${dustAmount})`;
         }
     }
 
@@ -1077,10 +1118,9 @@ function renderTransferRow(transfer) {
 
     // --- Token ID ---
     let tokenId = transfer.total?.token_id || transfer.token_id || transfer.tokenId || '';
-// Для executeOrder и executeOrderInternal — берем из обогащенных данных
-if ((method === 'executeOrder' || method === 'executeOrderInternal') && transfer._orderDetails?.tokenId) {
-    tokenId = transfer._orderDetails.tokenId;
-}
+    if ((method === 'executeOrder' || method === 'executeOrderInternal') && transfer._orderDetails?.tokenId) {
+        tokenId = transfer._orderDetails.tokenId;
+    }
     if (tokenId && typeof tokenId === 'string' && tokenId.startsWith('0x')) {
         tokenId = truncateHash(tokenId, 6);
     } else if (typeof tokenId === 'number' || (typeof tokenId === 'string' && !isNaN(tokenId))) {
@@ -1090,15 +1130,15 @@ if ((method === 'executeOrder' || method === 'executeOrderInternal') && transfer
     }
 
     const tokenType = transfer.token?.type || transfer.token_type || '';
-    const tokenSymbol = (transfer.token?.symbol || '').toUpperCase();
+    const tokenSymbolRaw = (transfer.token?.symbol || '').toUpperCase();
     const tokenName = (transfer.token?.name || '').toUpperCase();
 
-    const isPXLNFT = tokenSymbol.includes('PXLNFT') || tokenName.includes('PIXEL ITEM NFT');
+    const isPXLNFT = tokenSymbolRaw.includes('PXLNFT') || tokenName.includes('PIXEL ITEM NFT');
     const isNFT = tokenType === 'ERC-721' || tokenType === 'ERC-1155';
     const isEquipUnequip = method === 'equip' || method === 'unequip';
-const isExecuteOrderInternal = method === 'executeOrderInternal';
+    const isExecuteOrderInternal = method === 'executeOrderInternal';
 
-const showTokenId = (isPXLNFT || isNFT || (isEquipUnequip && tokenId) || isExecuteOrderInternal) && tokenId;
+    const showTokenId = (isPXLNFT || isNFT || (isEquipUnequip && tokenId) || isExecuteOrderInternal) && tokenId;
 
     // --- Данные NFT ---
     const tokenInstance = transfer.total?.token_instance || {};
@@ -1131,19 +1171,24 @@ const showTokenId = (isPXLNFT || isNFT || (isEquipUnequip && tokenId) || isExecu
         }
     }
 
-    // --- Price ---
-let price = '—';
-if (method === 'executeOrderInternal') {
-    if (transfer._orderDetails?.priceInWei) {
-        const priceInSgb = (parseFloat(transfer._orderDetails.priceInWei) / 1e18).toFixed(2);
-        price = `${priceInSgb}`;
-    } else {
-        price = '⏳';
+    // --- Token symbol ---
+    let tokenSymbol = transfer.token?.symbol || '—';
+    if (transfer._isInternal && parseFloat(transfer.value || transfer.total?.value || 0) > 0) {
+        tokenSymbol = NETWORK_TOKEN; // native SGB
     }
-} else if (method === 'executeOrder' || method === 'createOrder') {
-    price = transfer._price || '⏳';
-}
 
+    // --- Price ---
+    let price = '—';
+    if (method === 'executeOrderInternal') {
+        if (transfer._orderDetails?.priceInWei) {
+            const priceInSgb = (parseFloat(transfer._orderDetails.priceInWei) / 1e18).toFixed(2);
+            price = `${priceInSgb}`;
+        } else {
+            price = '⏳';
+        }
+    } else if (method === 'executeOrder' || method === 'createOrder') {
+        price = transfer._price || '⏳';
+    }
 
     // --- ВАЖНО: ПОРЯДОК КОЛОНОК ДОЛЖЕН СОВПАДАТЬ С THEAD ---
     tr.innerHTML = `
@@ -1157,9 +1202,8 @@ if (method === 'executeOrderInternal') {
             <a href="https://songbird-explorer.flare.network/tx/${transfer.transaction_hash}" target="_blank" class="hash cell-value">${truncateHash(transfer.transaction_hash, 8)}</a>
         </td>
         <td data-label="Токен" class="col-token">
-            <span class="token-symbol cell-value">${method === 'executeOrderInternal' ? NETWORK_TOKEN : (transfer.token?.symbol || '—')}</span>
+            <span class="token-symbol cell-value">${tokenSymbol}</span>
         </td>
-
         <td data-label="Отправитель" class="col-from">
             <a href="https://songbird-explorer.flare.network/address/${getAddress(transfer.from)}" target="_blank" class="hash cell-value">${truncateHash(getAddress(transfer.from), 8)}</a>
         </td>
@@ -1205,7 +1249,7 @@ function renderTransfers(forceApply = true) {
     firstPageBtns.forEach(btn => btn.disabled = currentPage <= 1);
     lastPageBtns.forEach(btn => btn.disabled = currentPage >= totalPages);
 
-    const hasMoreData = !!nextPageParams;
+    const hasMoreData = !!(nextPageParams?.normal || nextPageParams?.internal);
     loadMoreBtns.forEach(btn => {
         btn.disabled = !hasMoreData;
         btn.style.opacity = hasMoreData ? '1' : '0.5';
@@ -1320,16 +1364,16 @@ async function loadPricesAndRender() {
         renderTransfers(false);
     }
     // 2. Обогащаем внутренние транзакции
-    const needInternalEnrich = allTransfers.some(t =>
-        t._isInternal === true &&
-        t.method === 'transfer' &&
-        !t._orderDetails
-    );
+const needInternalEnrich = allTransfers.some(t =>
+    t._isInternal === true &&
+    !t._orderDetails &&
+    (t._detectedMethod === 'transfer' || t._detectedMethod === 'other' || !t._detectedMethod)
+);
     if (needInternalEnrich) {
         showStatus('Определение методов внутренних транзакций...', 'info');
         await enrichInternalTransactions(allTransfers);
         filteredTransfers = applyFilters(allTransfers);
-        renderTransfers(false);
+        renderTransfers(true);
     }
 
 
@@ -1353,9 +1397,7 @@ async function loadPricesAndRender() {
     }
 
     // 4. Итоговый статус
-    if (!needPrice && !needNFT) {
-        showStatus(`Найдено ${filteredTransfers.length} записей.`, 'success');
-    }
+    showStatus(`Найдено ${filteredTransfers.length} записей.`, 'success');
 }
 
 
@@ -1449,6 +1491,64 @@ if (dateFilterEnd) {
 }
 
 // --- ЗАГРУЗКА ДОПОЛНИТЕЛЬНЫХ СТРАНИЦ (по кнопке) с защитой от дубликатов ---
+async function loadHistory(address, tokenType = '', initialLoad = false) {
+    if (!address || !address.startsWith('0x')) {
+        showStatus('Пожалуйста, введите корректный адрес', 'error');
+        return;
+    }
+    if (isLoading) return;
+
+    currentAddress = address;
+    isLoading = true;
+    fetchBtn.disabled = true;
+    showStatus('Загрузка данных... (включая internal транзакции)', 'info');
+
+    try {
+        currentPage = 1;
+        allTransfers = [];
+        totalLoadedPages = 0;
+
+        const [normalData, internalData] = await Promise.all([
+            fetchTokenTransfers(address, tokenType),
+            fetchInternalTransfers(address, tokenType)
+        ]);
+
+        nextPageParams = {
+            normal: normalData.next_page_params || null,
+            internal: internalData.next_page_params || null
+        };
+
+        // Объединяем все транзакции (без дедупликации)
+        const combined = [...(normalData.items || []), ...(internalData.items || [])];
+
+        combined.sort((a, b) => {
+            const tsA = new Date(a.timestamp || 0).getTime();
+            const tsB = new Date(b.timestamp || 0).getTime();
+            return tsB - tsA;
+        });
+
+        allTransfers = combined;
+        totalLoadedPages = 1;
+        allTransfers.forEach(t => getMethod(t));
+        saveAddressHistory(address);
+
+        applySorting();
+        filteredTransfers = applyFilters(allTransfers);
+        showStatus(`Загружено ${allTransfers.length} записей (включая internal)`, 'success');
+
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showStatus(`Ошибка загрузки: ${error.message}`, 'error');
+        allTransfers = [];
+        filteredTransfers = [];
+    } finally {
+        isLoading = false;
+        fetchBtn.disabled = false;
+        await loadPricesAndRender();
+    }
+}
+
+
 async function loadMorePages(count = 1, showIndicator = false) {
     if (showIndicator) {
         setLoadMoreButtonLoading(true);
@@ -1456,12 +1556,14 @@ async function loadMorePages(count = 1, showIndicator = false) {
     }
 
     let loaded = 0;
+    let totalAdded = 0;
     let currentNextNormal = nextPageParams?.normal || null;
     let currentNextInternal = nextPageParams?.internal || null;
 
-    // Исправлено: загружаем, пока есть хоть один тип пагинации
     while (loaded < count && (currentNextNormal || currentNextInternal) && !isLoading) {
         try {
+            let addedInIteration = 0;
+
             // === 1. Загружаем следующую страницу обычных (если есть) ===
             if (currentNextNormal) {
                 const normalData = await fetchTokenTransfers(currentAddress, tokenTypeFilter.value, currentNextNormal);
@@ -1471,15 +1573,16 @@ async function loadMorePages(count = 1, showIndicator = false) {
 
                 if (newNormalItems.length > 0) {
                     const existingKeys = new Set(allTransfers.map(t =>
-                        `${t.transaction_hash}-${t.log_index}-normal`
+                        `${t.transaction_hash}-${t.log_index}`
                     ));
                     const uniqueNew = newNormalItems.filter(t => {
-                        const key = `${t.transaction_hash}-${t.log_index}-normal`;
+                        const key = `${t.transaction_hash}-${t.log_index}`;
                         return !existingKeys.has(key);
                     });
                     if (uniqueNew.length > 0) {
                         uniqueNew.forEach(t => getMethod(t));
                         allTransfers = [...allTransfers, ...uniqueNew];
+                        addedInIteration += uniqueNew.length;
                         console.log(`Добавлено ${uniqueNew.length} обычных транзакций`);
                     }
                 }
@@ -1514,7 +1617,6 @@ async function loadMorePages(count = 1, showIndicator = false) {
                     if (nextPageParams) nextPageParams.internal = currentNextInternal;
 
                     if (newInternalItems.length > 0) {
-                        // Фильтруем только те, что >= lastNormalDate
                         const validItems = newInternalItems.filter(t => {
                             const txDate = new Date(t.timestamp || 0);
                             return txDate >= lastNormalDate;
@@ -1522,21 +1624,21 @@ async function loadMorePages(count = 1, showIndicator = false) {
 
                         if (validItems.length > 0) {
                             const existingKeys = new Set(allTransfers.map(t =>
-                                `${t.transaction_hash}-${t.log_index}-internal`
+                                `${t.transaction_hash}-${t.log_index}`
                             ));
                             const uniqueNew = validItems.filter(t => {
-                                const key = `${t.transaction_hash}-${t.log_index}-internal`;
+                                const key = `${t.transaction_hash}-${t.log_index}`;
                                 return !existingKeys.has(key);
                             });
                             if (uniqueNew.length > 0) {
                                 uniqueNew.forEach(t => getMethod(t));
                                 allTransfers = [...allTransfers, ...uniqueNew];
                                 loadedInternal += uniqueNew.length;
+                                addedInIteration += uniqueNew.length;
                                 console.log(`Добавлено ${uniqueNew.length} внутренних транзакций (всего загружено ${loadedInternal})`);
                             }
                         }
 
-                        // Если среди новых нет подходящих по дате — выходим
                         const anyValid = newInternalItems.some(t => {
                             const txDate = new Date(t.timestamp || 0);
                             return txDate >= lastNormalDate;
@@ -1550,7 +1652,6 @@ async function loadMorePages(count = 1, showIndicator = false) {
                         hasMoreInternal = false;
                     }
 
-                    // Защита от бесконечного цикла (сбрасываем счетчик после каждой итерации)
                     if (loadedInternal > 1000) {
                         console.warn('Слишком много внутренних транзакций, останавливаем');
                         hasMoreInternal = false;
@@ -1558,6 +1659,7 @@ async function loadMorePages(count = 1, showIndicator = false) {
                 }
             }
 
+            totalAdded += addedInIteration;
             applySorting();
             loaded++;
             totalLoadedPages++;
@@ -1579,71 +1681,9 @@ async function loadMorePages(count = 1, showIndicator = false) {
         await loadPricesAndRender();
     }
 
-    return loaded;
+    return { loaded, totalAdded };
 }
 
-
-// --- ОСНОВНАЯ ЗАГРУЗКА ИСТОРИИ ---
-async function loadHistory(address, tokenType = '', initialLoad = false) {
-    if (!address || !address.startsWith('0x')) {
-        showStatus('Пожалуйста, введите корректный адрес', 'error');
-        return;
-    }
-    if (isLoading) return;
-
-    currentAddress = address;
-    isLoading = true;
-    fetchBtn.disabled = true;
-    showStatus('Загрузка данных... (включая internal транзакции)', 'info');
-
-    try {
-        currentPage = 1;
-        allTransfers = [];
-        totalLoadedPages = 0;
-
-        // Загружаем обычные и внутренние
-        const [normalData, internalData] = await Promise.all([
-            fetchTokenTransfers(address, tokenType),
-            fetchInternalTransfers(address, tokenType)
-        ]);
-
-        // Сохраняем пагинацию
-        nextPageParams = {
-            normal: normalData.next_page_params || null,
-            internal: internalData.next_page_params || null
-        };
-
-        // Объединяем ВСЕ транзакции (без фильтрации)
-        const combined = [...(normalData.items || []), ...(internalData.items || [])];
-
-        // Сортируем по времени
-        combined.sort((a, b) => {
-            const tsA = new Date(a.timestamp || 0).getTime();
-            const tsB = new Date(b.timestamp || 0).getTime();
-            return tsB - tsA;
-        });
-
-        // Сохраняем ВСЕ транзакции в allTransfers
-        allTransfers = combined;
-        totalLoadedPages = 1;
-        allTransfers.forEach(t => getMethod(t));
-        saveAddressHistory(address);
-
-        applySorting();
-        filteredTransfers = applyFilters(allTransfers); // ← Фильтр применяется ТОЛЬКО здесь
-        showStatus(`Загружено ${allTransfers.length} записей (включая internal)`, 'success');
-
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showStatus(`Ошибка загрузки: ${error.message}`, 'error');
-        allTransfers = [];
-        filteredTransfers = [];
-    } finally {
-        isLoading = false;
-        fetchBtn.disabled = false;
-        await loadPricesAndRender();
-    }
-}
 
 // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
 function showStatus(message, type = 'info') {
@@ -1723,7 +1763,7 @@ function goToPage(page) {
 
 // --- Кнопка "Загрузить ещё" (единственное место для API-запросов) ---
 async function loadMoreHandler() {
-    if (!nextPageParams || isLoading) return;
+    if (!(nextPageParams?.normal || nextPageParams?.internal) || isLoading) return;
     try {
         const previousLength = allTransfers.length;
         const loaded = await loadMorePages(1, true);
@@ -1817,14 +1857,6 @@ enableNFTCheck.addEventListener('change', function() {
     }
 });
 
-document.getElementById('showOnlyInternal').addEventListener('change', function() {
-    if (currentAddress) {
-        filteredTransfers = applyFilters(allTransfers);
-        currentPage = 1; // Сброс на первую страницу
-        renderTransfers(true); // Принудительный рендер
-    }
-});
-
 
 rarityFilter.addEventListener('change', onFilterChange);
 
@@ -1853,47 +1885,6 @@ addressInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') fetchBtn.click();
 });
 
-// --- ОБРАБОТЧИК ДЛЯ FILTERS (internal/normal) ---
-document.addEventListener('DOMContentLoaded', function() {
-    const internalCheckbox = document.getElementById('showOnlyInternal');
-    const normalCheckbox = document.getElementById('showOnlyNormal');
-
-    if (internalCheckbox) {
-        // Удаляем старые обработчики, если они есть
-        const newInternal = internalCheckbox.cloneNode(true);
-        internalCheckbox.parentNode.replaceChild(newInternal, internalCheckbox);
-
-        newInternal.addEventListener('change', function() {
-            if (currentAddress) {
-                // Принудительно обновляем
-                filteredTransfers = applyFilters(allTransfers);
-                currentPage = 1;
-                renderTransfers(true);
-                updateStats();
-                showStatus(`Internal фильтр: ${this.checked ? 'включен' : 'выключен'}`, 'info');
-            }
-        });
-    }
-
-    if (normalCheckbox) {
-        // Удаляем старые обработчики, если они есть
-        const newNormal = normalCheckbox.cloneNode(true);
-        normalCheckbox.parentNode.replaceChild(newNormal, normalCheckbox);
-
-        newNormal.addEventListener('change', function() {
-            if (currentAddress) {
-                filteredTransfers = applyFilters(allTransfers);
-                currentPage = 1;
-                renderTransfers(true);
-                updateStats();
-                showStatus(`Normal фильтр: ${this.checked ? 'включен' : 'выключен'}`, 'info');
-            }
-        });
-    }
-});
-
-
-
 
 sortRadios.forEach(radio => {
     radio.addEventListener('change', saveSortOrder);
@@ -1905,7 +1896,6 @@ tokenSymbolFilter.addEventListener('change', function() {
     updateRarityFilterVisibility();
     onFilterChange();
 });
-
 
 methodCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {

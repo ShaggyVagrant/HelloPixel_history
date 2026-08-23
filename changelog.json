@@ -1,16 +1,16 @@
 {
-  "date": "2026-08-15",
+  "date": "2026-08-22",
   "range": {
+    "from": "v0.1.1",
     "to": "HEAD"
   },
   "stats": {
-    "total": 8,
+    "total": 12,
     "breaking": 0,
     "byType": {
-      "style": 1,
-      "feat": 3,
-      "docs": 1,
-      "other": 3
+      "fix": 5,
+      "feat": 6,
+      "docs": 1
     }
   },
   "breaking": [],
@@ -19,34 +19,114 @@
       "type": "feat",
       "emoji": "✨",
       "title": "Features",
-      "count": 3,
+      "count": 6,
       "commits": [
         {
-          "hash": "4b15ae6968af971461338f31442f2bc345b5e517",
-          "shortHash": "4b15ae6",
+          "hash": "60d59b2e78282ccbcdc8776efddf1a6e08c9896f",
+          "shortHash": "60d59b2",
           "type": "feat",
-          "subject": "добавлена возможность сортировки по дате",
+          "subject": "в таблицу добавлены продажи на рынке",
           "breaking": false,
           "author": "Igor",
-          "date": "2026-08-14T09:38:30+05:00"
+          "date": "2026-08-22T09:04:31+05:00"
         },
         {
-          "hash": "dcb750a6bb475bb0a98ebb58d9034da12dea0ba2",
-          "shortHash": "dcb750a",
+          "hash": "1c6f7dfde6900fe2cc99090f57c0595d7f29003a",
+          "shortHash": "1c6f7df",
           "type": "feat",
-          "subject": "добавлена возможность загрузки данных в диапазоне дат",
+          "subject": "В разделе advanced добавлена кнока обновления приложения. Актуально для PWA (чистит кэш)",
           "breaking": false,
           "author": "Igor",
-          "date": "2026-08-14T08:59:50+05:00"
+          "date": "2026-08-20T21:55:55+05:00"
         },
         {
-          "hash": "caf7bd2b32d205b93c709e1b6f7c98c41ead0cdf",
-          "shortHash": "caf7bd2",
+          "hash": "8096410d48c9fef58aa6bd767ac4a02657c9fd62",
+          "shortHash": "8096410",
           "type": "feat",
-          "subject": "версии считываются из index.html",
+          "subject": "добавлен режим прочёта нфт. Если включить, то показывается рамка в зависимости от рарности. Можно также фильтровать по рарности",
           "breaking": false,
           "author": "Igor",
-          "date": "2026-08-13T22:46:38+05:00"
+          "date": "2026-08-20T21:04:16+05:00"
+        },
+        {
+          "hash": "370562b0378a44acd83014c6f9f9091fc9834d97",
+          "shortHash": "370562b",
+          "type": "feat",
+          "subject": "фильтры сгруппированы по разделам",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-19T11:56:44+05:00"
+        },
+        {
+          "hash": "be5e7ebbbda5e9ef42e0535abea459709518616f",
+          "shortHash": "be5e7eb",
+          "type": "feat",
+          "subject": "новые фильтры открыть слот, сдача земли в аренду и отмена аренды",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-17T22:54:28+05:00"
+        },
+        {
+          "hash": "49cb798d40a58a81c17f29f55a77f931e75a1618",
+          "shortHash": "49cb798",
+          "type": "feat",
+          "subject": "вместо номера нфт будет показываться миниатюрка, если возможно",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-16T11:40:45+05:00"
+        }
+      ]
+    },
+    {
+      "type": "fix",
+      "emoji": "🐛",
+      "title": "Bug Fixes",
+      "count": 5,
+      "commits": [
+        {
+          "hash": "45333f55f602edc93a229383dab34f190439c84f",
+          "shortHash": "45333f5",
+          "type": "fix",
+          "subject": "исправлено взаимодействие фильтров Запуск УС и автоклейм",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-22T21:04:24+05:00"
+        },
+        {
+          "hash": "08f68deb7f3325ee08609939e59a9b9600373761",
+          "shortHash": "08f68de",
+          "type": "fix",
+          "subject": "согласование по датам внутренних и обычных транзакций",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-22T20:38:34+05:00"
+        },
+        {
+          "hash": "9dfe461fea6f8cc72a9113f5285e2f405c5bf478",
+          "shortHash": "9dfe461",
+          "type": "fix",
+          "subject": "исправлено при запаковке пыли не фильтровался расход пыли",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-17T21:16:52+05:00"
+        },
+        {
+          "hash": "0e627cd5032462ca45c93da8a445d2f81284a0b3",
+          "shortHash": "0e627cd",
+          "type": "fix",
+          "subject": "отображение миниатюры в таблице",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-16T14:42:13+05:00"
+        },
+        {
+          "hash": "c5a463e4289caf45e4a34b700308b133dd83126e",
+          "shortHash": "c5a463e",
+          "type": "fix",
+          "subject": "изменена логика диапазона. Даты формируются по гринвичу",
+          "breaking": false,
+          "author": "Igor",
+          "date": "2026-08-16T11:58:03+05:00"
         }
       ]
     },
@@ -57,65 +137,13 @@
       "count": 1,
       "commits": [
         {
-          "hash": "5d467639f59432917b86bc190ecac2160cea3bf0",
-          "shortHash": "5d46763",
+          "hash": "53cec528cffe73381e3250805a4c7e22abb88446",
+          "shortHash": "53cec52",
           "type": "docs",
-          "subject": "добавлено показывать изменения версий",
+          "subject": "добавлен CHANGELOG.md",
           "breaking": false,
           "author": "Igor",
-          "date": "2026-08-13T22:42:31+05:00"
-        }
-      ]
-    },
-    {
-      "type": "style",
-      "emoji": "💅",
-      "title": "Styles",
-      "count": 1,
-      "commits": [
-        {
-          "hash": "3853de9d84ee37f6a97a2eb8065309792b066a61",
-          "shortHash": "3853de9",
-          "type": "style",
-          "subject": "обновлён дизайн модуля NFT",
-          "breaking": false,
-          "author": "Igor",
-          "date": "2026-08-14T22:51:06+05:00"
-        }
-      ]
-    },
-    {
-      "type": "other",
-      "emoji": "📦",
-      "title": "Other Changes",
-      "count": 3,
-      "commits": [
-        {
-          "hash": "8d049fcc8bf66dc4696ae64d2451111d2ec0e1d6",
-          "shortHash": "8d049fc",
-          "type": "other",
-          "subject": "Добавлена фильтрация записей по токену (PXLNFT, PXLs, PXLD)",
-          "breaking": false,
-          "author": "Igor",
-          "date": "2026-08-13T22:06:51+05:00"
-        },
-        {
-          "hash": "00758bc17dd5518fc9cbe7b4c0feeb7381812f40",
-          "shortHash": "00758bc",
-          "type": "other",
-          "subject": "Обновление: Файлы настроек для айфона",
-          "breaking": false,
-          "author": "Igor",
-          "date": "2026-08-11T10:42:53+05:00"
-        },
-        {
-          "hash": "4f5830c09705337527399641959cab9ef2e87db2",
-          "shortHash": "4f5830c",
-          "type": "other",
-          "subject": "Подготовка к PWA",
-          "breaking": false,
-          "author": "Igor",
-          "date": "2026-08-11T09:41:47+05:00"
+          "date": "2026-08-15T21:41:53+05:00"
         }
       ]
     }
