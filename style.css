@@ -875,6 +875,107 @@ tr:hover td {
     padding-left: 5px;
 }
 
+
+
+/* Блок "Итоги по токенам" */
+.stats-summary {
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e9edf2;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+.summary-header:hover {
+    background: #f1f5f9;
+}
+
+.summary-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: #1a1a2e;
+}
+
+.summary-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #6b7280;
+    transition: transform 0.3s ease;
+    line-height: 1;
+}
+.summary-toggle:hover {
+    color: #1a1a2e;
+}
+.summary-toggle .toggle-icon {
+    transition: transform 0.2s ease;
+}
+.summary-toggle.collapsed .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.summary-content {
+    padding: 0 16px 16px 16px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    max-height: 500px;
+}
+.summary-content.collapsed {
+    max-height: 0;
+    padding: 0 16px;
+}
+
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.summary-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #4b5563;
+    border-bottom: 1px solid #e5e7eb;
+}
+.summary-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+.summary-table .token-cell {
+    font-weight: 600;
+}
+.summary-table .positive {
+    color: #059669;
+}
+.summary-table .negative {
+    color: #dc2626;
+}
+.summary-table .total-positive {
+    color: #059669;
+    font-weight: 700;
+}
+.summary-table .total-negative {
+    color: #dc2626;
+    font-weight: 700;
+}
+.summary-table .total-zero {
+    color: #6b7280;
+    font-weight: 700;
+}
+
+
+
 /* =====================================================
    МОБИЛЬНЫЕ КАРТОЧКИ (v4 — простая и ровная вёрстка)
    ===================================================== */
@@ -1185,4 +1286,40 @@ tr:hover td {
     height: 16px;
     accent-color: #4f46e5;
     cursor: pointer;
+}
+
+
+/* Итоги по токенам — не превращать в карточки */
+.stats-summary table,
+.stats-summary .summary-table {
+    display: table !important;
+    width: 100%;
+}
+.stats-summary thead {
+    display: table-header-group !important;
+}
+.stats-summary tbody {
+    display: table-row-group !important;
+}
+.stats-summary tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    flex-direction: unset !important;
+}
+.stats-summary th,
+.stats-summary td {
+    display: table-cell !important;
+    padding: 8px 12px !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    text-align: left !important;
+    flex-direction: unset !important;
+    justify-content: unset !important;
+}
+.stats-summary td::before {
+    content: none !important;
+    display: none !important;
 }

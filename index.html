@@ -60,6 +60,35 @@
     </div>
 </div>
 
+
+<!-- Блок "Итоги по токенам" -->
+<div class="stats-summary">
+    <div class="summary-header" id="summaryHeader">
+        <span class="summary-title">📊 Итоги по токенам</span>
+        <button class="summary-toggle" id="summaryToggle" aria-label="Свернуть/развернуть">
+            <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+    </div>
+    <div class="summary-content" id="summaryContent">
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>Токен</th>
+                    <th>Приход</th>
+                    <th>Расход</th>
+                    <th>Итог</th>
+                </tr>
+            </thead>
+            <tbody id="summaryBody">
+                <tr><td colspan="4" class="empty-state">Нет данных</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
             <!-- Фильтры -->
             <div class="filters">
                 <div class="filters-header" id="filtersHeader">
@@ -314,6 +343,9 @@
         <input type="checkbox" id="showOnlyNormal" class="tx-type-filter" /> Только обычные
     </label>
 </div>
+    <label class="advanced-checkbox">
+        <input type="checkbox" id="enableSummary"/> Просчитывать итоги
+    </label>
     <button id="clearCacheBtn" class="advanced-btn" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">
         🔄 Обновить приложение
     </button>
@@ -348,7 +380,7 @@
                             <th>Тип</th>
                             <th>Метод вызова</th>
                             <th>Token ID</th>
-                            <th>Price</th>
+                            <th>Цена <span id="networkTokenLabel">SGB</span></th>
                         </tr>
                     </thead>
                     <tbody id="transfersBody">

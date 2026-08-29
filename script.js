@@ -483,6 +483,28 @@ async function enrichWithNFTData(transfers) {
     }
 }
 
+async function enrichStartTransactions(transfers) {
+    const starts = transfers.filter(t => {
+        const method = t._detectedMethod || t.method || '';
+        return method === 'start' && !t._reservedSGB;
+    });
+
+    if (starts.length === 0) return;
+
+    for (const tx of starts) {
+        try {
+            const details = await fetchTransactionDetails(tx.transaction_hash);
+            if (details && details.value) {
+                const reservedSGB = parseFloat(details.value) / 1e18;
+                tx._reservedSGB = reservedSGB;
+                tx._price = reservedSGB; // Чтобы отображалось в колонке Price
+            }
+        } catch (e) {
+            console.error(`Ошибка обогащения start ${tx.transaction_hash}:`, e);
+        }
+    }
+}
+
 
 // --- СОХРАНЕНИЕ СОСТОЯНИЯ ЧЕКБОКСА "Включить NFT" ---
 function loadNFTCheckboxState() {
@@ -853,11 +875,22 @@ async function enrichInternalTransactions(transfers) {
                     return;
                 }
 
-                // === stop (Стоп УС) ===
-                if (signature === '07da68f5' || methodName.includes('stop')) {
-                    tx._detectedMethod = 'stop';
-                    return;
-                }
+// В enrichInternalTransactions(), для stop:
+if (signature === '07da68f5' || methodName.includes('stop')) {
+    // Сохраняем SGB из total.value
+    const rawAmount = parseFloat(tx.total?.value || 0);
+    if (!isNaN(rawAmount) && rawAmount > 0) {
+        tx._stopReturn = rawAmount / 1e18; // Сохраняем в SGB
+        tx._price = rawAmount / 1e18; // Для колонки Price
+    }
+    // Обнуляем total.value для колонки "Сумма"
+    if (tx.total) {
+        tx.total.value = '0';
+    }
+    tx.value = '0';
+    tx._detectedMethod = 'stop';
+    return;
+}
 
                 // === start (Запуск УС) — на всякий случай ===
                 if (signature === '95805dad' || methodName.includes('start')) {
@@ -1080,6 +1113,7 @@ function applyFilters(transfers) {
 }
 
 
+
 // --- Рендеринг строки таблицы ---
 function renderTransferRow(transfer) {
     const tr = document.createElement('tr');
@@ -1173,13 +1207,21 @@ function renderTransferRow(transfer) {
 
     // --- Token symbol ---
     let tokenSymbol = transfer.token?.symbol || '—';
-    if (transfer._isInternal && parseFloat(transfer.value || transfer.total?.value || 0) > 0) {
-        tokenSymbol = NETWORK_TOKEN; // native SGB
-    }
+// Для внутренних транзакций:
+if (transfer._isInternal) {
+    // Все внутренние транзакции — это SGB
+    tokenSymbol = NETWORK_TOKEN;
+}
 
     // --- Price ---
     let price = '—';
-    if (method === 'executeOrderInternal') {
+// В renderTransferRow(), в блоке price:
+if (method === 'stop' && transfer._stopReturn) {
+    price = `${transfer._stopReturn.toFixed(6)} SGB`;
+}
+else if (method === 'start' && transfer._reservedSGB) {
+    price = `${transfer._reservedSGB.toFixed(6)} SGB`;
+} else if (method === 'executeOrderInternal') {
         if (transfer._orderDetails?.priceInWei) {
             const priceInSgb = (parseFloat(transfer._orderDetails.priceInWei) / 1e18).toFixed(2);
             price = `${priceInSgb}`;
@@ -1222,9 +1264,9 @@ function renderTransferRow(transfer) {
         <td data-label="Token ID" class="col-tokenid token-id">
             <span class="cell-value">${tokenIdLink}</span>
         </td>
-        <td data-label="Price" class="col-price price">
-            <span class="cell-value">${price}</span>
-        </td>
+<td data-label="Цена ${NETWORK_TOKEN}" class="col-price price">
+    <span class="cell-value">${price}</span>
+</td>
     `;
     return tr;
 }
@@ -1345,6 +1387,8 @@ function renderPageNumbers() {
     });
 }
 
+
+
 // --- Загрузка цен и NFT (асинхронно, не блокирует UI) ---
 async function loadPricesAndRender() {
     // Обновляем filteredTransfers
@@ -1362,13 +1406,30 @@ async function loadPricesAndRender() {
         showStatus('Загрузка цен для покупок...', 'info');
         await enrichWithPrices(filteredTransfers);
         renderTransfers(false);
+        //onFilterChange()
     }
-    // 2. Обогащаем внутренние транзакции
-const needInternalEnrich = allTransfers.some(t =>
-    t._isInternal === true &&
-    !t._orderDetails &&
-    (t._detectedMethod === 'transfer' || t._detectedMethod === 'other' || !t._detectedMethod)
-);
+
+// === Обогащение start (Запуск УС) — только если включен чекбокс ===
+const enableSummary = document.getElementById('enableSummary');
+if (enableSummary && enableSummary.checked) {
+    const needStartEnrich = filteredTransfers.some(t => {
+        const method = t._detectedMethod || t.method || '';
+        return method === 'start' && !t._reservedSGB;
+    });
+    if (needStartEnrich) {
+        showStatus('Загрузка резервирования SGB для Запуск УС...', 'info');
+        await enrichStartTransactions(filteredTransfers);
+        renderTransfers(false);
+    }
+}
+
+
+    // 3. Обогащаем внутренние транзакции
+    const needInternalEnrich = allTransfers.some(t =>
+        t._isInternal === true &&
+        !t._orderDetails &&
+        (t._detectedMethod === 'transfer' || t._detectedMethod === 'other' || !t._detectedMethod)
+    );
     if (needInternalEnrich) {
         showStatus('Определение методов внутренних транзакций...', 'info');
         await enrichInternalTransactions(allTransfers);
@@ -1376,11 +1437,9 @@ const needInternalEnrich = allTransfers.some(t =>
         renderTransfers(true);
     }
 
-
-    // 3. Если чекбокс включён, загружаем данные NFT (из allTransfers, но обновляем filteredTransfers)
+    // 4. Если чекбокс включён, загружаем данные NFT
     let needNFT = false;
     if (enableNFTCheck && enableNFTCheck.checked) {
-        // Проверяем все транзакции, а не только отфильтрованные
         const allNeedNFT = allTransfers.some(t => {
             const tokenId = t.total?.token_id || t.token_id || t.tokenId;
             return tokenId && !t._nftData;
@@ -1388,15 +1447,14 @@ const needInternalEnrich = allTransfers.some(t =>
         if (allNeedNFT) {
             needNFT = true;
             showStatus('Загрузка данных NFT...', 'info');
-            // Загружаем для всех транзакций
             await enrichWithNFTData(allTransfers);
-            // После загрузки обновляем filteredTransfers
             filteredTransfers = applyFilters(allTransfers);
             renderTransfers(false);
         }
     }
 
-    // 4. Итоговый статус
+    // 5. Итоговый статус
+    onFilterChange()
     showStatus(`Найдено ${filteredTransfers.length} записей.`, 'success');
 }
 
@@ -1518,7 +1576,6 @@ async function loadHistory(address, tokenType = '', initialLoad = false) {
             internal: internalData.next_page_params || null
         };
 
-        // Объединяем все транзакции (без дедупликации)
         const combined = [...(normalData.items || []), ...(internalData.items || [])];
 
         combined.sort((a, b) => {
@@ -1564,7 +1621,6 @@ async function loadMorePages(count = 1, showIndicator = false) {
         try {
             let addedInIteration = 0;
 
-            // === 1. Загружаем следующую страницу обычных (если есть) ===
             if (currentNextNormal) {
                 const normalData = await fetchTokenTransfers(currentAddress, tokenTypeFilter.value, currentNextNormal);
                 const newNormalItems = normalData.items || [];
@@ -1588,7 +1644,6 @@ async function loadMorePages(count = 1, showIndicator = false) {
                 }
             }
 
-            // === 2. Пересчитываем дату последней обычной ===
             const allNormals = allTransfers.filter(t => !t._isInternal);
             let lastNormalDate = null;
             if (allNormals.length > 0) {
@@ -1601,7 +1656,6 @@ async function loadMorePages(count = 1, showIndicator = false) {
             }
             console.log('Новая дата последней обычной:', lastNormalDate);
 
-            // === 3. Загружаем ВСЕ внутренние, которые подходят по дате (если есть пагинация) ===
             if (lastNormalDate && currentNextInternal) {
                 let hasMoreInternal = true;
                 let loadedInternal = 0;
@@ -1684,7 +1738,6 @@ async function loadMorePages(count = 1, showIndicator = false) {
     return { loaded, totalAdded };
 }
 
-
 // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
 function showStatus(message, type = 'info') {
     statusMessage.textContent = message;
@@ -1706,8 +1759,21 @@ function onFilterChange() {
         currentPage = 1;
 
         try {
+            // Шаг 1: Применяем фильтры ОДИН раз
             filteredTransfers = applyFilters(allTransfers);
+            // Шаг 2: Рендерим таблицу
             renderTransfers(true);
+            // Шаг 3: Обновляем итоги ПО ОТФИЛЬТРОВАННЫМ данным
+            // === ПРОВЕРКА: включен ли чекбокс "Просчитывать итоги" ===
+            const enableSummary = document.getElementById('enableSummary');
+            if (enableSummary && enableSummary.checked) {
+                updateSummary();
+            } else {
+                const summaryBody = document.getElementById('summaryBody');
+                if (summaryBody) {
+                    summaryBody.innerHTML = `<tr><td colspan="4" class="empty-state">Итоги отключены (включите в Advanced)</td></tr>`;
+                }
+            }
 
             const needPrice = filteredTransfers.some(t => {
                 const method = getMethod(t);
@@ -2010,11 +2076,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 4. ОСТАЛЬНЫЕ НАСТРОЙКИ ---
+        // Обновляем заголовок колонки "Цена"
+
     loadSortOrder();
     loadNFTCheckboxState();
     updateRarityFilterVisibility();
     checkChangelog();
 });
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const label = document.getElementById('networkTokenLabel');
+    if (label) label.textContent = NETWORK_TOKEN;
+});
+
 
 // =====================================================
 // ПРОСТОЙ РАБОЧИЙ ОБРАБОТЧИК ДЛЯ INTERNAL/NORMAL (v6)
@@ -2089,4 +2164,253 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFilter();
     });
 
+});
+
+
+// --- СВОРАЧИВАНИЕ БЛОКА "ИТОГИ ПО ТОКЕНАМ" ---
+const summaryHeader = document.getElementById('summaryHeader');
+const summaryToggle = document.getElementById('summaryToggle');
+const summaryContent = document.getElementById('summaryContent');
+
+// Загружаем состояние из localStorage
+const summaryCollapsed = localStorage.getItem('summaryCollapsed') === 'true';
+
+if (summaryCollapsed) {
+    summaryContent.classList.add('collapsed');
+    summaryToggle.classList.add('collapsed');
+}
+
+function toggleSummary() {
+    const isCollapsed = summaryContent.classList.toggle('collapsed');
+    summaryToggle.classList.toggle('collapsed');
+    localStorage.setItem('summaryCollapsed', isCollapsed);
+}
+
+
+function updateSummary() {
+    const summaryBody = document.getElementById('summaryBody');
+    if (!summaryBody) return;
+
+    // === ПРОВЕРКА: включен ли чекбокс "Просчитывать итоги" ===
+    if (!enableSummary || !enableSummary.checked) {
+        summaryBody.innerHTML = `<tr><td colspan="4" class="empty-state">Итоги отключены (включите в Advanced)</td></tr>`;
+        return;
+    }
+
+    // === НОВЫЙ АККУМУЛЯТОР (без предварительного создания ключей) ===
+    const totals = {};
+
+    // Флаг для принудительного добавления строки SGB, если были рыночные операции
+    let hasMarketActivity = false;
+
+    // === ЕДИНСТВЕННЫЙ ЦИКЛ ПО ДАННЫМ ===
+    filteredTransfers.forEach(t => {
+        // Определяем символ сразу
+        let symbol = t.token?.symbol || '';
+        if (!symbol && t._isInternal) {
+            symbol = NETWORK_TOKEN;
+        }
+        if (!symbol) return; // Пропускаем записи без символа
+
+        symbol = symbol.toUpperCase();
+
+        // Проверка методов рынка внутри основного цикла (заменяет .some())
+        const method = t._detectedMethod || t.method || '';
+        if (method === 'executeOrder' || method === 'executeOrderInternal' || method === 'stop') {
+            hasMarketActivity = true;
+        }
+
+        // Инициализируем объект токена "на лету", если его еще нет
+        if (!totals[symbol]) {
+            totals[symbol] = { income: 0, outcome: 0 };
+        }
+
+        const isIncomingTx = isIncoming(t);
+        const tokenType = t.token?.type || t.token_type || '';
+        const isNFT = (tokenType === 'ERC-721' || symbol === 'PXLNFT');
+        let amount = 0;
+
+        // === Покупка (Финансы - / Инвентарь +) ===
+        if (method === 'executeOrder' && t._price) {
+            const priceSymbol = NETWORK_TOKEN.toUpperCase();
+            if (!totals[priceSymbol]) totals[priceSymbol] = { income: 0, outcome: 0 };
+
+            const price = parseFloat(t._price);
+            if (!isNaN(price) && price > 0) {
+                totals[priceSymbol].outcome += price;
+            }
+            if (isNFT) totals[symbol].income += 1;
+            return;
+        }
+
+        // === Продажа (Финансы + / Инвентарь -) ===
+        if (method === 'executeOrderInternal') {
+            const priceSymbol = NETWORK_TOKEN.toUpperCase();
+            if (!totals[priceSymbol]) totals[priceSymbol] = { income: 0, outcome: 0 };
+
+            const rawAmount = parseFloat(t.value || t.total?.value || 0);
+            if (!isNaN(rawAmount) && rawAmount > 0) {
+                totals[priceSymbol].income += rawAmount / 1e18;
+            }
+            if (isNFT) totals[symbol].outcome += 1;
+            return;
+        }
+
+        // === Обычные транзакции ===
+        if (isNFT) {
+            amount = 1;
+        } else {
+            let rawAmount = 0;
+            let decimals = 18;
+            if (t.total?.value) {
+                rawAmount = parseFloat(t.total.value);
+                if (t.total.decimals !== undefined) decimals = parseInt(t.total.decimals);
+            } else if (t.value) {
+                rawAmount = parseFloat(t.value);
+            }
+            if (!isNaN(rawAmount) && rawAmount > 0) {
+                amount = rawAmount / Math.pow(10, decimals);
+            }
+        }
+
+        if (isIncomingTx) {
+            totals[symbol].income += amount;
+        } else {
+            totals[symbol].outcome += amount;
+        }
+
+                // Стоп УС (Только финансы +)
+                console.log('updateSummary: метод stop?', method);
+if (method === 'stop') {
+    const priceSymbol = NETWORK_TOKEN.toUpperCase();
+    if (!totals[priceSymbol]) totals[priceSymbol] = { income: 0, outcome: 0 };
+
+    // Берем сумму из _stopReturn (сохранена при обогащении)
+    const amount = parseFloat(t._stopReturn || 0);
+    if (!isNaN(amount) && amount > 0) {
+        totals[priceSymbol].income += amount;
+    }
+    return;
+}
+
+        // === РАСХОД: Запуск УС (start) — резервирование SGB ===
+        if (method === 'start' && t._reservedSGB) {
+            const priceSymbol = NETWORK_TOKEN.toUpperCase();
+            if (!totals[priceSymbol]) totals[priceSymbol] = { income: 0, outcome: 0 };
+
+            const amount = parseFloat(t._reservedSGB);
+            if (!isNaN(amount) && amount > 0) {
+                totals[priceSymbol].outcome += amount;
+            }
+            return;
+        }
+        if (amount === 0) return;
+    });
+
+    // Если данных вообще не было или после фильтра пусто
+    if (Object.keys(totals).length === 0) {
+        summaryBody.innerHTML = `<tr><td colspan="4" class="empty-state">Нет данных по токенам</td></tr>`;
+        return;
+    }
+
+    // === ПРЕОБРАЗОВАНИЕ В МАССИВ ДЛЯ СОРТИРОВКИ ===
+    const tokenList = Object.keys(totals);
+
+    // Принудительно добавляем SGB, если была активность на рынке,
+    // даже если сам SGB не участвовал в обычных переводах
+    if (hasMarketActivity && !tokenList.includes(NETWORK_TOKEN.toUpperCase())) {
+        tokenList.push(NETWORK_TOKEN.toUpperCase());
+        totals[NETWORK_TOKEN.toUpperCase()] = { income: 0, outcome: 0 };
+    }
+
+    // Сортируем так, чтобы SGB был первым
+    tokenList.sort((a, b) => {
+        if (a === NETWORK_TOKEN.toUpperCase()) return -1;
+        if (b === NETWORK_TOKEN.toUpperCase()) return 1;
+        return a.localeCompare(b);
+    });
+
+    // Рендеринг
+    let html = '';
+    tokenList.forEach(symbol => {
+        const data = totals[symbol];
+        const total = data.income - data.outcome;
+
+        const isNFT = (symbol === 'PXLNFT');
+        const isNative = (symbol === NETWORK_TOKEN.toUpperCase());
+
+        // Для ВСЕХ токенов — 4 знака после запятой
+        const decimalsDisplay = isNFT ? 0 : 4;
+
+        const zeroDisplay = isNFT ? '0' : '0.0000';
+        const totalClass = total > 0 ? 'total-positive' : (total < 0 ? 'total-negative' : 'total-zero');
+
+        html += `
+            <tr>
+                <td class="token-cell">${symbol}</td>
+                <td class="positive">+${data.income.toFixed(decimalsDisplay)}</td>
+                <td class="negative">-${data.outcome.toFixed(decimalsDisplay)}</td>
+                <td class="${totalClass}">${total >= 0 ? '+' : ''}${total.toFixed(decimalsDisplay)}</td>
+            </tr>
+        `;
+    });
+
+    summaryBody.innerHTML = html;
+}
+
+
+
+// Привязываем обработчики
+if (summaryHeader) {
+    summaryHeader.addEventListener('click', function(e) {
+        // Если клик на кнопку — не обрабатываем (чтобы не было двойного срабатывания)
+        if (e.target.closest('.summary-toggle')) return;
+        toggleSummary();
+    });
+}
+
+if (summaryToggle) {
+    summaryToggle.addEventListener('click', function(e) {
+        e.stopPropagation(); // Чтобы не сработал клик на заголовке
+        toggleSummary();
+    });
+}
+
+// --- ЧЕКБОКС "ПРОСЧИТЫВАТЬ ИТОГИ" ---
+const enableSummary = document.getElementById('enableSummary');
+
+// Восстанавливаем состояние из localStorage
+if (enableSummary) {
+    const saved = localStorage.getItem('enableSummary');
+    if (saved !== null) {
+        enableSummary.checked = saved === 'true';
+    }
+    // По умолчанию (если нет сохранённого состояния) — выключен
+}
+
+// --- ЧЕКБОКС "ПРОСЧИТЫВАТЬ ИТОГИ" ---
+document.getElementById('enableSummary')?.addEventListener('change', async function() {
+    // Сохраняем состояние
+    localStorage.setItem('enableSummary', this.checked);
+
+    if (this.checked) {
+        // Если включили — обогащаем start и обновляем итоги
+        const needStartEnrich = filteredTransfers.some(t => {
+            const method = t._detectedMethod || t.method || '';
+            return method === 'start' && !t._reservedSGB;
+        });
+        if (needStartEnrich) {
+            showStatus('Загрузка резервирования SGB для Запуск УС...', 'info');
+            await enrichStartTransactions(filteredTransfers);
+            renderTransfers(false);
+        }
+        // Пересчитываем итоги
+        updateSummary();
+    } else {
+        // Если выключили — показываем заглушку
+        const summaryBody = document.getElementById('summaryBody');
+        if (summaryBody) {
+            summaryBody.innerHTML = `<tr><td colspan="4" class="empty-state">Итоги отключены (включите в Advanced)</td></tr>`;
+        }
+    }
 });
