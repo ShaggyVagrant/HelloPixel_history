@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="app-version" content="0.2.1">
-    <title>Songbird Explorer - История токенов</title>
-
+    <title>HelloPixel Explorer — История транзакций токенов в геймифицированном кошельке Hello Pixel</title>
+    <meta name="description" content="Бесплатный инструмент для просмотра истории транзакций PXLNFT, PXLs, PXLD и других токенов Hello Pixel по адресу кошелька в сети Songbird. Фильтры по дате, типу операций и токенам.">
+    <meta name="keywords" content="Songbird Explorer, Hello Pixel, история транзакций, PXLNFT, PXLs, PXLD, Songbird, Skale">
     <!-- PWA: Манифест -->
     <link rel="manifest" href="/manifest.json" />
 
@@ -20,8 +21,78 @@
 
     <!-- Основные стили -->
     <link rel="stylesheet" href="style.css" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "HelloPixel Explorer",
+      "description": "Инструмент для просмотра истории транзакций токенов Hello Pixel в сети Songbird",
+      "url": "https://shaggyvagrant.github.io/HelloPixel_history/",
+      "applicationCategory": "Utility",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
 </head>
 <body>
+	<!-- ===== SEO + AI Overviews блок (скрыт для пользователей) ===== -->
+<header class="seo-content" style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;">
+  <h1>HelloPixel Explorer — История транзакций токенов Hello Pixel</h1>
+
+  <p>
+    HelloPixel Explorer — бесплатный инструмент для просмотра полной истории транзакций токенов Hello Pixel (PXLNFT, PXLs, PXLD и других) по любому адресу кошелька в сети Songbird.
+    Позволяет быстро найти все клеймы, крафты, покупки, продажи, прокачки майнера и действия с инвентарём.
+  </p>
+
+  <h2>Что умеет HelloPixel Explorer?</h2>
+  <ul>
+    <li>Показывать историю транзакций по адресу кошелька в сети Songbird</li>
+    <li>Фильтровать по токенам: PXLNFT, PXLs, PXLD</li>
+    <li>Фильтровать по типу операций: клеймы, крафт, купить/продать, майнер и инвентарь, синдикаты</li>
+    <li>Выбирать период дат и сортировать записи (новые/старые сверху)</li>
+    <li>Видеть детали: хэш транзакции, отправитель, получатель, сумма, Token ID и цену</li>
+  </ul>
+
+  <h2>Как пользоваться HelloPixel Explorer</h2>
+  <ol>
+    <li>Вставьте адрес кошелька (начинается с 0x…)</li>
+    <li>Нажмите кнопку «Получить историю»</li>
+    <li>При необходимости примените фильтры по токену, дате или типу операции</li>
+    <li>Изучите таблицу с полной историей транзакций</li>
+  </ol>
+
+  <h2>Поддерживаемые типы операций</h2>
+  <ul>
+    <li><strong>От команды</strong> — начисления и действия от команды Hello Pixel</li>
+    <li><strong>Кузня</strong> — крафт, запаковка и распаковка пыли, крафт по рецепту</li>
+    <li><strong>Клеймы</strong> — автоклейм, ручной клейм, запуск УС, клейм пыли</li>
+    <li><strong>Купить / продать</strong> — выставление, покупка и продажа NFT и токенов на рынке</li>
+    <li><strong>Майнер и инвентарь</strong> — прокачка дрели, хранилища, шахты, надевание/снятие NFT, открытие сундуков</li>
+    <li><strong>Синдикаты</strong> — пополнение, аренда земли</li>
+  </ul>
+
+  <h2>Часто задаваемые вопросы</h2>
+
+  <h3>Что такое HelloPixel Explorer?</h3>
+  <p>Это community-инструмент для удобного просмотра истории транзакций токенов экосистемы Hello Pixel в сети Songbird (canary-сеть Flare).</p>
+
+  <h3>Нужно ли подключать кошелёк?</h3>
+  <p>Нет. Достаточно просто вставить публичный адрес кошелька.</p>
+
+  <h3>Какие токены поддерживаются?</h3>
+  <p>Основные токены Hello Pixel: PXLNFT, PXLs, PXLD, а также другие токены, участвующие в транзакциях.</p>
+
+  <h3>Это официальный инструмент Hello Pixel?</h3>
+  <p>Нет, это независимый community-инструмент, созданный для удобства пользователей.</p>
+
+  <h3>Данные в реальном времени?</h3>
+  <p>Инструмент загружает актуальные данные из блокчейна Songbird на момент запроса.</p>
+</header>
+<!-- ===== Конец SEO-блока ===== -->
     <div class="container">
         <div class="card">
             <h1>🔍 Songbird Explorer</h1>
@@ -373,10 +444,10 @@
                         <tr>
                             <th>Дата</th>
                             <th>Хэш транзакции</th>
-                            <th>Токен</th>
                             <th>Отправитель</th>
                             <th>Получатель</th>
                             <th>Сумма</th>
+                            <th>Токен</th>
                             <th>Тип</th>
                             <th>Метод вызова</th>
                             <th>Token ID</th>
@@ -402,6 +473,17 @@
                 <button class="lastPageBtn">Последняя ⏭</button>
                 <button id="loadMoreBtnBottom" class="load-more-btn">Загрузить ещё</button>
             </div>
+            <!-- ===== ФУТЕР ===== -->
+            <footer class="site-footer">
+                <div class="footer-links">
+                    <a href="about.html">О приложении</a>
+                    <span class="footer-separator">•</span>
+                    <a href="contacts.html">Контакты</a>
+                </div>
+                <div class="footer-copy">
+                    Community-инструмент для Hello Pixel · Songbird Network
+                </div>
+            </footer>
         </div>
     </div>
 
